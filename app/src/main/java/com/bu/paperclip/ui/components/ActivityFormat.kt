@@ -14,7 +14,7 @@ fun activityActor(e: ActivityEvent): String = when (e.actorType) {
     else -> e.actorType.replaceFirstChar { it.uppercase() }
 }
 
-/** Human-readable one-liner for an activity event, e.g. "Bruna commented on BUD-12". */
+/** Human-readable one-liner for an activity event, e.g. "Ada commented on PAP-12". */
 fun activitySentence(e: ActivityEvent): String {
     val who = activityActor(e)
     val target = e.d("identifier") ?: e.d("issueIdentifier") ?: e.d("title") ?: e.d("name") ?: e.entityType ?: ""

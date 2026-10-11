@@ -52,8 +52,10 @@ import kotlinx.coroutines.launch
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 @Composable
-fun SetupScreen(initial: String, onSave: (String) -> Unit) {
+fun SetupScreen(initial: String, initialToken: String = "", onSave: (url: String, token: String) -> Unit) {
     var url by remember { mutableStateOf(initial.ifEmpty { "https://" }) }
+    var token by remember { mutableStateOf(initialToken) }
+    var showToken by remember { mutableStateOf(initialToken.isNotEmpty()) }
     val valid = url.trim().toHttpUrlOrNull()?.host?.isNotBlank() == true
     Column(
         Modifier.fillMaxSize().padding(24.dp).imePadding(),
@@ -76,8 +78,22 @@ fun SetupScreen(initial: String, onSave: (String) -> Unit) {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
             modifier = Modifier.fillMaxWidth(),
         )
+        Spacer(Modifier.height(8.dp))
+        if (showToken) {
+            OutlinedTextField(
+                value = token,
+                onValueChange = { token = it },
+                label = { Text("Board API key (optional)") },
+                placeholder = { Text("pcp_board_…") },
+                supportingText = { Text("Skips browser sign-in. Live updates fall back to polling with a key.") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            TextButton(onClick = { showToken = true }) { Text("Use an API key instead") }
+        }
         Spacer(Modifier.height(16.dp))
-        Button(onClick = { onSave(url.trim().trimEnd('/')) }, enabled = valid, modifier = Modifier.fillMaxWidth()) { Text("Continue") }
+        Button(onClick = { onSave(url.trim().trimEnd('/'), token.trim()) }, enabled = valid, modifier = Modifier.fillMaxWidth()) { Text("Continue") }
     }
 }
 

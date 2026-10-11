@@ -25,6 +25,14 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         pendingLink.value = intent?.getStringExtra(EXTRA_LINK)
+        if (BuildConfig.DEBUG) {
+            val url = intent?.getStringExtra("setupUrl")
+            val key = intent?.getStringExtra("setupKey")
+            if (url != null) kotlinx.coroutines.runBlocking {
+                AppState.settings.setBaseUrl(url)
+                AppState.settings.setApiToken(key ?: "")
+            }
+        }
         setContent {
             val settings by AppState.settings.flow.collectAsState(AppSettings(theme = "system"))
             val dark = when (settings.theme) { "dark" -> true; "light" -> false; else -> null }

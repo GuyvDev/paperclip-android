@@ -65,7 +65,8 @@ object LiveEvents {
 
     private fun connect() {
         val cid = companyId ?: return
-        if (Api.baseUrl.isEmpty()) return
+        // The live socket only accepts cookie sessions; with an API key screens fall back to polling.
+        if (Api.baseUrl.isEmpty() || Api.bearer != null) return
         val wsUrl = Api.baseUrl.replaceFirst("https://", "wss://").replaceFirst("http://", "ws://") + "/api/companies/$cid/events/ws"
         val req = Request.Builder().url(wsUrl.replaceFirst("wss://", "https://").replaceFirst("ws://", "http://")).build()
         socket = Api.client.newWebSocket(req, object : WebSocketListener() {

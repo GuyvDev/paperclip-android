@@ -36,7 +36,7 @@ class NotifyWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
     override suspend fun doWork(): Result {
         val s = AppState.settings.current()
         if (!s.notifications || s.baseUrl.isEmpty() || s.companyId.isEmpty()) return Result.success()
-        if (Api.baseUrl.isEmpty()) Api.configure(s.baseUrl)
+        if (Api.baseUrl.isEmpty()) Api.configure(s.baseUrl, s.apiToken)
         val since = parseInstant(s.lastNotifiedAt) ?: Instant.now().minusSeconds(3600)
         return try {
             val feed = Repo.attention(s.companyId, limit = 30)

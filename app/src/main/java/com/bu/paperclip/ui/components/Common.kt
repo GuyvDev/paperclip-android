@@ -129,6 +129,13 @@ fun LiveRefresh(debounceMs: Long = 600, filter: (LiveEvent) -> Boolean, onEvent:
         var first = true
         LiveEvents.epoch.collect { if (!first) cb(); first = false }
     }
+    // Without the live socket (reconnecting, or API-key mode) poll like the web UI does.
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(15_000)
+            if (!LiveEvents.connected.value) cb()
+        }
+    }
 }
 
 /** Fallback polling while the live socket is down. */

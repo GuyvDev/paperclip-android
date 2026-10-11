@@ -16,7 +16,7 @@ class PaperclipApp : Application(), ImageLoaderFactory {
         NotifyWorker.ensureChannel(this)
         AppState.scope.launch {
             val s = AppState.settings.current()
-            if (s.baseUrl.isNotEmpty()) Api.configure(s.baseUrl)
+            if (s.baseUrl.isNotEmpty()) Api.configure(s.baseUrl, s.apiToken)
             NotifyWorker.schedule(this@PaperclipApp, s.notifications)
         }
     }

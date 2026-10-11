@@ -77,7 +77,7 @@ fun AppRoot(pendingLink: String?, onLinkConsumed: () -> Unit) {
     LaunchedEffect(bootKey) {
         val s = AppState.settings.current()
         if (s.baseUrl.isEmpty()) { phase = Phase.Setup; return@LaunchedEffect }
-        Api.configure(s.baseUrl)
+        Api.configure(s.baseUrl, s.apiToken)
         phase = Phase.Boot
         try {
             if (!Api.checkSession()) { phase = Phase.Login; return@LaunchedEffect }
@@ -98,10 +98,10 @@ fun AppRoot(pendingLink: String?, onLinkConsumed: () -> Unit) {
 
     when (val p = phase) {
         Phase.Boot -> SplashScreen()
-        Phase.Setup -> SetupScreen(Api.baseUrl) { url ->
-            scope.launch { AppState.settings.setBaseUrl(url); bootKey++ }
+        Phase.Setup -> SetupScreen(Api.baseUrl, Api.bearer ?: "") { url, token ->
+            scope.launch { AppState.settings.setBaseUrl(url); AppState.settings.setApiToken(token); bootKey++ }
         }
-        Phase.Login -> LoginScreen(
+        Phase.Login -> if (Api.bearer != null) SplashScreen("The API key was rejected.", onRetry = { phase = Phase.Setup }) else LoginScreen(
             baseUrl = Api.baseUrl,
             onSignedIn = { bootKey++ },
             onChangeServer = { phase = Phase.Setup },

@@ -69,6 +69,9 @@ enum class AuthState { Unknown, SignedOut, SignedIn }
 object Api {
     @Volatile var baseUrl: String = ""
         private set
+    /** Optional board API key; when set it replaces the cookie session for REST calls. */
+    @Volatile var bearer: String? = null
+        private set
     private val _auth = MutableStateFlow(AuthState.Unknown)
     val auth: StateFlow<AuthState> = _auth
 
@@ -89,6 +92,8 @@ object Api {
             val req = chain.request()
             val b = req.newBuilder().header("Accept", "application/json")
             if (req.method != "GET" && req.method != "HEAD" && baseUrl.isNotEmpty()) b.header("Origin", origin)
+            val token = bearer
+            if (token != null && baseUrl.isNotEmpty() && req.url.host == baseUrl.toHttpUrl().host) b.header("Authorization", "Bearer $token")
             chain.proceed(b.build())
         }
         .build()
@@ -96,8 +101,9 @@ object Api {
     /** For images and downloads: follows redirects but still carries the session cookies. */
     val mediaClient: OkHttpClient = client.newBuilder().followRedirects(true).followSslRedirects(true).build()
 
-    fun configure(url: String) {
+    fun configure(url: String, token: String? = null) {
         baseUrl = url.trimEnd('/')
+        bearer = token?.trim()?.takeIf { it.isNotEmpty() }
     }
 
     fun markSignedIn() { _auth.value = AuthState.SignedIn }

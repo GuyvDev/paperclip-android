@@ -138,6 +138,12 @@ fun SettingsScreen(nav: Nav, onSignedOut: () -> Unit) {
             TextButton(onClick = { NotifyWorker.runNow(ctx) }, modifier = Modifier.padding(horizontal = 8.dp)) { Text("Check now") }
 
             SectionHeader("Server")
+            Text(
+                if (Api.bearer != null) "Connected with an API key" else "Connected with a browser session",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
             Divider()
             Text(
                 "Sign out",
@@ -161,7 +167,7 @@ fun SettingsScreen(nav: Nav, onSignedOut: () -> Unit) {
             confirmButton = {
                 TextButton(onClick = {
                     confirmSignOut = false
-                    scope.launch { LiveEvents.stop(); Api.signOut(); onSignedOut() }
+                    scope.launch { LiveEvents.stop(); Api.signOut(); AppState.settings.setApiToken(""); Api.configure(Api.baseUrl, null); onSignedOut() }
                 }) { Text("Sign out") }
             },
             dismissButton = { TextButton(onClick = { confirmSignOut = false }) { Text("Cancel") } },

@@ -149,7 +149,7 @@ private fun CostsContent(nav: Nav, b: CostBundle, period: Int) {
                 Card(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(p.provider.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                            Text(com.bu.paperclip.util.providerLabel(p.provider), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                             if (!p.ok) Pill("unavailable", adminStatusColor("failed"))
                         }
                         if (!p.ok && !p.error.isNullOrBlank()) {
@@ -187,7 +187,7 @@ private fun CostsContent(nav: Nav, b: CostBundle, period: Int) {
             items(providers.size) { i ->
                 val p = providers[i]
                 AdminListRow(
-                    title = listOfNotNull(p.provider.ifEmpty { null }, p.model).joinToString(" · "),
+                    title = listOfNotNull(p.provider.ifEmpty { null }?.let { com.bu.paperclip.util.providerLabel(it) }, p.model).joinToString(" · "),
                     subtitle = buildString {
                         append("${adminCompact(p.inputTokens)} in · ${adminCompact(p.outputTokens)} out")
                         val runs = p.apiRunCount + p.subscriptionRunCount

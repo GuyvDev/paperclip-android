@@ -5,7 +5,22 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-fun parseInstant(s: String?): Instant? = s?.let { runCatching { Instant.parse(it) }.getOrNull() }
+/** Accepts `Z` and `+hh:mm` ISO timestamps (older Android rejects offsets in Instant.parse) and epoch numbers. */
+fun parseInstant(s: String?): Instant? {
+    if (s.isNullOrBlank()) return null
+    runCatching { return Instant.parse(s) }
+    runCatching { return java.time.OffsetDateTime.parse(s).toInstant() }
+    s.toLongOrNull()?.let { n -> return if (n > 100_000_000_000L) Instant.ofEpochMilli(n) else Instant.ofEpochSecond(n) }
+    return null
+}
+
+fun providerLabel(p: String): String = when (p.lowercase()) {
+    "anthropic" -> "Anthropic"
+    "openai" -> "OpenAI"
+    "google", "gemini", "google_antigravity" -> "Google"
+    "zai", "z.ai" -> "Z.ai"
+    else -> p.replaceFirstChar { it.uppercase() }
+}
 
 fun relativeTime(iso: String?, now: Instant = Instant.now()): String {
     val t = parseInstant(iso) ?: return ""

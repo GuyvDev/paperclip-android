@@ -50,6 +50,7 @@ private fun markwon(context: Context, codeBg: Int): Markwon {
                     .codeBlockBackgroundColor(codeBg)
                     .codeTextSize(spToPx(context, 13f))
                     .headingBreakHeight(0)
+                    .headingTextSizeMultipliers(floatArrayOf(1.3f, 1.18f, 1.08f, 1f, 1f, 1f))
             }
 
             override fun configureConfiguration(builder: MarkwonConfiguration.Builder) {

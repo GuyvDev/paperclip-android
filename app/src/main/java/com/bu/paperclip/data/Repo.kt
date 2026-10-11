@@ -11,8 +11,9 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.util.UUID
 
+/** Builds a request body; Kotlin nulls are omitted (the server rejects null on optional fields). Pass JsonNull to send an explicit null. */
 fun jsonOf(vararg pairs: Pair<String, Any?>): JsonObject = buildJsonObject {
-    pairs.forEach { (k, v) -> put(k, toJson(v)) }
+    pairs.forEach { (k, v) -> if (v != null) put(k, toJson(v)) }
 }
 
 fun toJson(v: Any?): JsonElement = when (v) {
@@ -21,7 +22,7 @@ fun toJson(v: Any?): JsonElement = when (v) {
     is String -> JsonPrimitive(v)
     is Number -> JsonPrimitive(v)
     is Boolean -> JsonPrimitive(v)
-    is Map<*, *> -> buildJsonObject { v.forEach { (k, x) -> put(k.toString(), toJson(x)) } }
+    is Map<*, *> -> buildJsonObject { v.forEach { (k, x) -> if (x != null) put(k.toString(), toJson(x)) } }
     is Collection<*> -> buildJsonArray { v.forEach { add(toJson(it)) } }
     else -> JsonPrimitive(v.toString())
 }

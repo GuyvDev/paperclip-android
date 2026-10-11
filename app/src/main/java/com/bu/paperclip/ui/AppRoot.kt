@@ -4,6 +4,7 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -174,6 +175,8 @@ private fun MainShell(pendingLink: String?, onLinkConsumed: () -> Unit, onSigned
     }
 
     Scaffold(
+        // Inner screens own the status-bar inset; this scaffold only reserves room for the bottom bar.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackHost) },
         bottomBar = {
             if (route in Routes.TABS) {
@@ -199,7 +202,7 @@ private fun MainShell(pendingLink: String?, onLinkConsumed: () -> Unit, onSigned
         NavHost(
             navController = controller,
             startDestination = Routes.DASHBOARD,
-            modifier = Modifier.padding(bottom = pad.calculateBottomPadding()).consumeWindowInsets(pad),
+            modifier = Modifier.padding(pad).consumeWindowInsets(pad),
             enterTransition = { fadeIn() },
             exitTransition = { fadeOut() },
             popEnterTransition = { EnterTransition.None },

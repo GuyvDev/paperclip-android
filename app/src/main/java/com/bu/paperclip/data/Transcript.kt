@@ -156,7 +156,8 @@ class TranscriptBuilder(private val adapterType: String?) {
                 add(TEntry.Result(ts, j.s("result"), u.n("input_tokens"), u.n("output_tokens"), u.n("cache_read_input_tokens"), j.d("total_cost_usd"),
                     j.s("is_error") == "true", (j["errors"] as? JsonArray)?.map { pretty(it) } ?: emptyList()))
             }
-            else -> add(TEntry.Line(ts, "stdout", line))
+            // Bookkeeping events (rate limits, hooks, stream deltas) stay in the raw log only.
+            else -> if (type.isEmpty()) add(TEntry.Line(ts, "stdout", line))
         }
     }
 
@@ -197,7 +198,7 @@ class TranscriptBuilder(private val adapterType: String?) {
                     type == "turn.failed", listOfNotNull(pretty(j["error"]).takeIf { it.isNotEmpty() })))
             }
             "error" -> add(TEntry.Line(ts, "stderr", j.s("message").ifEmpty { line }))
-            else -> add(TEntry.Line(ts, "stdout", line))
+            else -> if (type.isEmpty()) add(TEntry.Line(ts, "stdout", line))
         }
     }
 

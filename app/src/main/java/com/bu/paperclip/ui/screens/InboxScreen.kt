@@ -75,6 +75,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bu.paperclip.data.AppState
+import com.bu.paperclip.ui.components.AgentAvatar
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.graphics.Color
 import com.bu.paperclip.data.AttentionItem
 import com.bu.paperclip.data.Issue
 import com.bu.paperclip.data.Repo
@@ -117,7 +121,7 @@ fun InboxScreen(nav: Nav) {
     val scope = rememberCoroutineScope()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Inbox") }) },
+        topBar = { TopAppBar(title = { Text("Inbox", style = MaterialTheme.typography.headlineSmall) }) },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
@@ -131,7 +135,7 @@ fun InboxScreen(nav: Nav) {
                                 Text(label)
                                 if (i == 0 && badges.inbox > 0) {
                                     Spacer(Modifier.width(6.dp))
-                                    Badge { Text(if (badges.inbox > 99) "99+" else "${badges.inbox}") }
+                                    Badge(containerColor = LocalStatusColors.current.red, contentColor = Color.White) { Text(if (badges.inbox > 99) "99+" else "${badges.inbox}") }
                                 }
                             }
                         },
@@ -331,21 +335,20 @@ private fun InboxAttentionRow(
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.background)
                 .combinedClickable(onClick = onClick, onLongClick = { menu = true })
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.Top,
         ) {
             Box(
-                Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(sevColor.copy(alpha = 0.15f)),
+                Modifier.size(38.dp).clip(RoundedCornerShape(11.dp)).background(sevColor.copy(alpha = 0.13f)),
                 contentAlignment = Alignment.Center,
             ) { Icon(inboxIcon(item), null, tint = sevColor, modifier = Modifier.size(20.dp)) }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(inboxKindLabel(item), style = MaterialTheme.typography.labelMedium, color = sevColor)
+                    Text(inboxKindLabel(item), style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold), color = sevColor)
                     val ref = item.relatedIssue?.identifier ?: item.subject.identifier
                     if (ref != null) {
-                        Spacer(Modifier.width(6.dp))
-                        Text(ref, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(" · $ref", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Spacer(Modifier.weight(1f))
                     Text(
@@ -354,28 +357,21 @@ private fun InboxAttentionRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                Spacer(Modifier.height(3.dp))
                 Text(
                     item.subject.title ?: item.relatedIssue?.title ?: "Untitled",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.Medium),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                val relatedTitle = item.relatedIssue?.title
-                if (relatedTitle != null && relatedTitle != item.subject.title) {
+                // One line of context: the task it's about, or why it's here.
+                val relatedTitle = item.relatedIssue?.title?.takeIf { it != item.subject.title }
+                val context = relatedTitle ?: item.whyNow
+                if (!context.isNullOrBlank()) {
+                    Spacer(Modifier.height(2.dp))
                     Text(
-                        relatedTitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                val why = item.whyNow
-                if (!why.isNullOrBlank()) {
-                    Text(
-                        why,
-                        style = MaterialTheme.typography.bodySmall,
+                        context,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -383,8 +379,10 @@ private fun InboxAttentionRow(
                 }
                 val agentName = item.originAgentName
                 if (!agentName.isNullOrBlank()) {
-                    Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Pill(agentName, MaterialTheme.colorScheme.onSurfaceVariant)
+                    val agent = AppState.agents.value.firstOrNull { it.name == agentName }
+                    Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (agent != null) { AgentAvatar(agent.id, 18.dp); Spacer(Modifier.width(6.dp)) }
+                        Text(agentName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.res.ResourcesCompat
+import com.bu.paperclip.R
 import com.bu.paperclip.net.Api
 import io.noties.markwon.AbstractMarkwonPlugin
 import io.noties.markwon.LinkResolver
@@ -46,9 +48,16 @@ private fun markwon(context: Context, codeBg: Int): Markwon {
         })
         .usePlugin(object : AbstractMarkwonPlugin() {
             override fun configureTheme(builder: MarkwonTheme.Builder) {
+                val mono = ResourcesCompat.getFont(context, R.font.jetbrains_mono_regular)
+                val heading = ResourcesCompat.getFont(context, R.font.inter_semibold)
                 builder.codeBackgroundColor(codeBg)
                     .codeBlockBackgroundColor(codeBg)
-                    .codeTextSize(spToPx(context, 13f))
+                    .codeTextSize(spToPx(context, 12.5f))
+                    .codeBlockMargin(spToPx(context, 12f))
+                    .blockQuoteWidth(spToPx(context, 3f))
+                    .bulletWidth(spToPx(context, 5f))
+                    .apply { if (mono != null) codeTypeface(mono).codeBlockTypeface(mono) }
+                    .apply { if (heading != null) headingTypeface(heading) }
                     .headingBreakHeight(0)
                     .headingTextSizeMultipliers(floatArrayOf(1.3f, 1.18f, 1.08f, 1f, 1f, 1f))
             }
@@ -101,7 +110,10 @@ fun Markdown(text: String, modifier: Modifier = Modifier, fontSizeSp: Float = 15
             TextView(ctx).apply {
                 setTextIsSelectable(selectable)
                 movementMethod = LinkMovementMethod.getInstance()
-                setLineSpacing(0f, 1.15f)
+                setLineSpacing(0f, 1.2f)
+                typeface = ResourcesCompat.getFont(ctx, R.font.inter_regular)
+                // Inter's tracking, as in the Compose type scale.
+                letterSpacing = -0.004f
             }
         },
         update = { tv ->

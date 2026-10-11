@@ -18,8 +18,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.PersonOutline
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -42,6 +40,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import com.bu.paperclip.ui.components.PropertyChip
 import com.bu.paperclip.data.AppState
 import com.bu.paperclip.data.Issue
 import com.bu.paperclip.data.Repo
@@ -136,23 +135,23 @@ fun NewIssueScreen(nav: Nav, parentId: String?, projectId: String?, assigneeAgen
                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
             )
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AssistChip(onClick = { sheet = "status" }, label = { Text(statusLabel(status)) }, leadingIcon = { StatusIcon(status, 14.dp) })
-                AssistChip(onClick = { sheet = "priority" }, label = { Text(priority.replaceFirstChar { it.uppercase() }) }, leadingIcon = { PriorityIcon(priority, 16.dp) })
-                AssistChip(
+                PropertyChip(onClick = { sheet = "status" }, label = { Text(statusLabel(status)) }, leadingIcon = { StatusIcon(status, 14.dp) })
+                PropertyChip(onClick = { sheet = "priority" }, label = { Text(priority.replaceFirstChar { it.uppercase() }) }, leadingIcon = { PriorityIcon(priority, 16.dp) })
+                PropertyChip(
                     onClick = { sheet = "assignee" },
                     label = { Text(agentId?.let { AppState.agentName(it) } ?: userId?.let { AppState.userName(it) } ?: "Unassigned") },
                     leadingIcon = {
                         when {
                             agentId != null -> AgentAvatar(agentId, 18.dp)
                             userId != null -> Avatar(AppState.userName(userId), null, 18.dp, isAgent = false)
-                            else -> Icon(Icons.Outlined.PersonOutline, null, Modifier.size(AssistChipDefaults.IconSize))
+                            else -> Icon(Icons.Outlined.PersonOutline, null, Modifier.size(18.dp))
                         }
                     },
                 )
-                AssistChip(
+                PropertyChip(
                     onClick = { sheet = "project" },
                     label = { Text(AppState.project(project)?.name ?: "No project") },
-                    leadingIcon = { Icon(Icons.Outlined.FolderOpen, null, Modifier.size(AssistChipDefaults.IconSize)) },
+                    leadingIcon = { Icon(Icons.Outlined.FolderOpen, null, Modifier.size(18.dp)) },
                 )
             }
             OutlinedTextField(

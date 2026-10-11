@@ -53,7 +53,7 @@ fun MoreScreen(nav: Nav) {
     val me by AppState.me.collectAsState()
     val badges by AppState.badges.collectAsState()
 
-    Scaffold(topBar = { TopAppBar(title = { Text("More") }) }) { pad ->
+    Scaffold(topBar = { TopAppBar(title = { Text("More", style = MaterialTheme.typography.headlineSmall) }) }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState())) {
             Card(Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -31,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.bu.paperclip.ui.components.AppFilterChip
 import com.bu.paperclip.data.AppState
 import com.bu.paperclip.data.BudgetOverview
 import com.bu.paperclip.data.CachedQuota
@@ -100,7 +100,7 @@ fun CostsScreen(nav: Nav) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 costPeriods.forEachIndexed { i, label ->
-                    FilterChip(selected = period == i, onClick = { period = i }, label = { Text(label) })
+                    AppFilterChip(selected = period == i, onClick = { period = i }, label = { Text(label) })
                 }
             }
             LoadContent(loader) { b -> CostsContent(nav, b, period) }

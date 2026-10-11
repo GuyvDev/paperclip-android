@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bu.paperclip.ui.theme.Mono
 import com.bu.paperclip.data.AppState
 import com.bu.paperclip.data.InstructionsFile
 import com.bu.paperclip.data.Repo
@@ -186,7 +187,7 @@ private fun AgentInstructionsFileView(agentId: String, path: String, agentName: 
                     OutlinedTextField(
                         value = draft,
                         onValueChange = { draft = it },
-                        textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 13.sp, lineHeight = 18.sp),
+                        textStyle = TextStyle(fontFamily = Mono, fontSize = 13.sp, lineHeight = 18.sp),
                         modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 4.dp),
                     )
                 }
@@ -198,7 +199,7 @@ private fun AgentInstructionsFileView(agentId: String, path: String, agentName: 
                         SelectionContainer {
                             Text(
                                 f.content,
-                                style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 17.sp),
+                                style = TextStyle(fontFamily = Mono, fontSize = 12.sp, lineHeight = 17.sp),
                                 softWrap = false,
                                 modifier = Modifier.horizontalScroll(rememberScrollState()).padding(16.dp),
                             )

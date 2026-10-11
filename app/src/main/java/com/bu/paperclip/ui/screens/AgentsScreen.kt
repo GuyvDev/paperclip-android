@@ -20,7 +20,6 @@ import androidx.compose.material.icons.outlined.AccountTree
 import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconToggleButton
@@ -40,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.bu.paperclip.ui.components.AppFilterChip
 import com.bu.paperclip.data.Agent
 import com.bu.paperclip.data.AppState
 import com.bu.paperclip.data.LiveRun
@@ -55,6 +55,9 @@ import com.bu.paperclip.ui.components.agentStatusColor
 import com.bu.paperclip.ui.components.rememberAction
 import com.bu.paperclip.ui.components.rememberLoader
 import com.bu.paperclip.ui.components.statusLabel
+import com.bu.paperclip.ui.theme.LocalStatusColors
+import com.bu.paperclip.ui.theme.Mono
+import androidx.compose.ui.text.font.FontWeight
 
 private val agentFilters = listOf("all" to "All", "running" to "Running", "active" to "Active", "paused" to "Paused", "error" to "Error")
 
@@ -103,7 +106,7 @@ fun AgentsScreen(nav: Nav) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Agents") },
+                title = { Text("Agents", style = MaterialTheme.typography.headlineSmall) },
                 actions = {
                     IconToggleButton(checked = orgView, onCheckedChange = { orgView = it }) {
                         Icon(Icons.Outlined.AccountTree, "Org view", tint = if (orgView) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
@@ -120,7 +123,7 @@ fun AgentsScreen(nav: Nav) {
                 val counts = loader.value?.agents?.groupingBy { agentFilterBucket(it.status) }?.eachCount().orEmpty()
                 agentFilters.forEach { (k, label) ->
                     val n = if (k == "all") loader.value?.agents?.size else counts[k]
-                    FilterChip(
+                    AppFilterChip(
                         selected = filter == k,
                         onClick = { filter = k },
                         label = { Text(if (n != null && n > 0) "$label $n" else label) },
@@ -210,13 +213,13 @@ private fun AgentListRow(agent: Agent, depth: Int, live: LiveRun?, onClick: () -
             }
             Text(
                 agent.title?.takeIf { it.isNotBlank() } ?: agentRoleLabel(agent.role),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             val modelLine = listOfNotNull(agent.model, agentAdapterLabel(agent.adapterType).takeIf { it.isNotEmpty() }).joinToString(" · ")
             if (modelLine.isNotEmpty()) {
-                Text(modelLine, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                Text(modelLine, style = MaterialTheme.typography.labelSmall.copy(fontFamily = Mono, fontWeight = FontWeight.Normal), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
             val snippet = live?.let { it.currentStatusMessage ?: it.currentToolName?.let { t -> "Using $t" } ?: it.lastAssistantSnippet }
                 ?: if (agent.status == "error") agent.errorReason else if (agent.status == "paused") agent.pauseReason?.let { "Paused: $it" } else null
@@ -226,8 +229,8 @@ private fun AgentListRow(agent: Agent, depth: Int, live: LiveRun?, onClick: () -
         }
         if (agent.status != "pending_approval") {
             IconButton(onClick = onToggle, modifier = Modifier.size(48.dp)) {
-                if (agent.status == "paused") Icon(Icons.Outlined.PlayCircle, "Resume ${agent.name}", tint = MaterialTheme.colorScheme.primary)
-                else Icon(Icons.Outlined.PauseCircle, "Pause ${agent.name}", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (agent.status == "paused") Icon(Icons.Outlined.PlayCircle, "Resume ${agent.name}", tint = LocalStatusColors.current.yellow, modifier = Modifier.size(22.dp))
+                else Icon(Icons.Outlined.PauseCircle, "Pause ${agent.name}", tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f), modifier = Modifier.size(22.dp))
             }
         }
     }

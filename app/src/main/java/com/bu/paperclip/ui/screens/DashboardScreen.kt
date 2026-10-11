@@ -10,12 +10,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.bu.paperclip.ui.components.SectionAction
+import com.bu.paperclip.ui.theme.TABULAR
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Gavel
 import androidx.compose.material.icons.outlined.PauseCircle
+import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.SmartToy
+import androidx.compose.material.icons.outlined.Timelapse
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -102,7 +112,7 @@ fun DashboardScreen(nav: Nav) {
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(company?.name ?: "Paperclip", maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                        Text(company?.name ?: "Paperclip", style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                         Spacer(Modifier.width(8.dp))
                         Dot(if (connected) LocalStatusColors.current.green else LocalStatusColors.current.yellow, 8.dp)
                     }
@@ -132,7 +142,7 @@ fun DashboardScreen(nav: Nav) {
                 item(key = "metrics") { DashMetrics(d.summary, nav) }
                 item(key = "live-h") {
                     SectionHeader("Live now") {
-                        TextButton(onClick = { nav.tab(Routes.AGENTS) }) { Text("Agents") }
+                        SectionAction("Agents") { nav.tab(Routes.AGENTS) }
                     }
                 }
                 if (d.live.isEmpty()) {
@@ -150,7 +160,7 @@ fun DashboardScreen(nav: Nav) {
                 }
                 item(key = "act-h") {
                     SectionHeader("Recent activity") {
-                        TextButton(onClick = { nav.activity() }) { Text("See all") }
+                        SectionAction("See all") { nav.activity() }
                     }
                 }
                 if (d.activity.isEmpty()) item(key = "act-empty") { EmptyState("Nothing has happened yet") }
@@ -164,19 +174,20 @@ fun DashboardScreen(nav: Nav) {
 private fun DashPausedBanner(count: Int, onResume: () -> Unit) {
     val yellow = LocalStatusColors.current.yellow
     Surface(
-        color = yellow.copy(alpha = 0.12f),
-        shape = RoundedCornerShape(12.dp),
+        color = yellow.copy(alpha = 0.10f),
+        shape = MaterialTheme.shapes.medium,
+        border = androidx.compose.foundation.BorderStroke(1.dp, yellow.copy(alpha = 0.28f)),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        Row(Modifier.padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.PauseCircle, null, tint = yellow)
+        Row(Modifier.padding(start = 14.dp, end = 6.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.PauseCircle, null, tint = yellow, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(10.dp))
             Text(
                 "$count agent${if (count == 1) " is" else "s are"} paused",
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                 modifier = Modifier.weight(1f),
             )
-            TextButton(onClick = onResume) { Text("Resume all") }
+            TextButton(onClick = onResume) { Text("Resume all", color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold) }
         }
     }
 }
@@ -189,14 +200,14 @@ private fun DashMetrics(s: DashboardSummary, nav: Nav) {
     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             DashMetric(
-                "Agents", "$enabled",
+                "Agents", "$enabled", Icons.Outlined.SmartToy,
                 if (s.agents.running > 0) "${s.agents.running} running" else "none running",
                 Modifier.weight(1f),
                 accent = if (s.agents.error > 0) st.red else null,
                 extra = if (s.agents.error > 0) "${s.agents.error} in error" else null,
             ) { nav.tab(Routes.AGENTS) }
             DashMetric(
-                "Tasks in progress", "${s.tasks.inProgress}",
+                "In progress", "${s.tasks.inProgress}", Icons.Outlined.Timelapse,
                 if (s.tasks.blocked > 0) "${s.tasks.blocked} blocked" else "${s.tasks.open} open",
                 Modifier.weight(1f),
                 accent = if (s.tasks.blocked > 0) st.red else null,
@@ -205,7 +216,7 @@ private fun DashMetrics(s: DashboardSummary, nav: Nav) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             val pct = s.costs.monthUtilizationPercent
             DashMetric(
-                "Month spend", formatCents(s.costs.monthSpendCents),
+                "Month spend", formatCents(s.costs.monthSpendCents), Icons.Outlined.Payments,
                 if (s.costs.monthBudgetCents > 0) "of ${formatCents(s.costs.monthBudgetCents)}" else "no budget set",
                 Modifier.weight(1f),
                 progress = if (s.costs.monthBudgetCents > 0) (pct / 100.0).toFloat().coerceIn(0f, 1f) else null,
@@ -216,7 +227,7 @@ private fun DashMetrics(s: DashboardSummary, nav: Nav) {
                 },
             ) { nav.costs() }
             DashMetric(
-                "Pending approvals", "$approvals",
+                "Approvals", "$approvals", Icons.Outlined.Gavel,
                 if (s.budgets.activeIncidents > 0) "${s.budgets.activeIncidents} budget incident${if (s.budgets.activeIncidents == 1) "" else "s"}" else "waiting on you",
                 Modifier.weight(1f),
                 accent = if (approvals > 0) st.violet else null,
@@ -229,6 +240,7 @@ private fun DashMetrics(s: DashboardSummary, nav: Nav) {
 private fun DashMetric(
     label: String,
     value: String,
+    icon: ImageVector,
     sub: String,
     modifier: Modifier,
     accent: Color? = null,
@@ -240,16 +252,23 @@ private fun DashMetric(
     Surface(
         onClick = onClick,
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Column(Modifier.padding(14.dp)) {
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-            Spacer(Modifier.height(6.dp))
+        Column(Modifier.padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (accent != null) { Dot(accent, 8.dp); Spacer(Modifier.width(6.dp)) }
-                Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, modifier = Modifier.weight(1f))
+                Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    value,
+                    style = MaterialTheme.typography.headlineMedium.copy(fontFeatureSettings = TABULAR),
+                    maxLines = 1,
+                )
+                if (accent != null) { Spacer(Modifier.width(8.dp)); Dot(accent, 7.dp) }
             }
             Spacer(Modifier.height(2.dp))
             Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -258,7 +277,7 @@ private fun DashMetric(
                 Spacer(Modifier.height(8.dp))
                 LinearProgressIndicator(
                     progress = { progress },
-                    modifier = Modifier.fillMaxWidth().height(4.dp),
+                    modifier = Modifier.fillMaxWidth().height(4.dp).clip(CircleShape),
                     color = progressColor,
                     trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     drawStopIndicator = {},

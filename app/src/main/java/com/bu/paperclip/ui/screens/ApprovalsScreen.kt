@@ -28,6 +28,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -51,6 +53,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bu.paperclip.ui.theme.Mono
 import com.bu.paperclip.data.AppState
 import com.bu.paperclip.data.Approval
 import com.bu.paperclip.data.ApprovalComment
@@ -60,6 +63,12 @@ import com.bu.paperclip.ui.Nav
 import com.bu.paperclip.ui.components.AgentAvatar
 import com.bu.paperclip.ui.components.Avatar
 import com.bu.paperclip.ui.components.Card
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
 import com.bu.paperclip.ui.components.Divider
 import com.bu.paperclip.ui.components.EmptyState
 import com.bu.paperclip.ui.components.IssueRow
@@ -251,7 +260,7 @@ fun ApprovalDetailScreen(nav: Nav, id: String) {
                     val payload = a.payload
                     if (payload != null && payload.isNotEmpty()) {
                         item { SectionHeader("Details") }
-                        item { Column(Modifier.padding(horizontal = 16.dp)) { ApprovalPayload(payload) } }
+                        item { Card(Modifier.padding(horizontal = 16.dp), padding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)) { Column { ApprovalPayload(payload) } } }
                     }
                     if (b.issues.isNotEmpty()) {
                         item { SectionHeader("Linked tasks") }
@@ -274,16 +283,29 @@ fun ApprovalDetailScreen(nav: Nav, id: String) {
             }
             if (loader.value != null) {
                 Divider()
-                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
+                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.Bottom) {
+                    val canSend = draft.isNotBlank() && !sending
+                    TextField(
                         value = draft,
                         onValueChange = { draft = it },
-                        placeholder = { Text("Add a comment") },
-                        modifier = Modifier.weight(1f),
+                        placeholder = { Text("Add a comment…") },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                         maxLines = 5,
+                        shape = RoundedCornerShape(24.dp),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                        ),
                     )
+                    Spacer(Modifier.width(8.dp))
                     IconButton(
-                        enabled = draft.isNotBlank() && !sending,
+                        enabled = canSend,
+                        modifier = Modifier.padding(bottom = 2.dp).size(44.dp).background(
+                            if (canSend) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            RoundedCornerShape(50),
+                        ),
                         onClick = {
                             val text = draft.trim()
                             sending = true
@@ -299,7 +321,13 @@ fun ApprovalDetailScreen(nav: Nav, id: String) {
                                 }
                             }
                         },
-                    ) { Icon(Icons.AutoMirrored.Filled.Send, "Send") }
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Send, "Send",
+                            tint = if (canSend) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                 }
             }
         }
@@ -406,7 +434,7 @@ private fun ApprovalPayload(payload: JsonObject) {
                 val flat = value.values.all { it is JsonPrimitive || it is JsonNull }
                 Text(adminHumanize(key), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
                 if (flat) {
-                    Column(Modifier.padding(start = 12.dp)) { ApprovalPayload(value) }
+                    ApprovalPayload(value)
                 } else {
                     ApprovalJsonBlock(value)
                 }
@@ -433,7 +461,7 @@ private fun ApprovalJsonBlock(el: JsonElement) {
     ) {
         Text(
             approvalPrettyJson.encodeToString(JsonElement.serializer(), el),
-            fontFamily = FontFamily.Monospace,
+            fontFamily = Mono,
             fontSize = 12.sp,
             fontWeight = FontWeight.Normal,
             modifier = Modifier.horizontalScroll(rememberScrollState()).padding(10.dp),

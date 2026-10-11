@@ -36,8 +36,6 @@ import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -75,6 +73,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.bu.paperclip.ui.theme.Mono
+import com.bu.paperclip.ui.components.PropertyChip
 import com.bu.paperclip.data.ActivityEvent
 import com.bu.paperclip.data.AppState
 import com.bu.paperclip.data.Attachment
@@ -549,7 +549,7 @@ fun IssueDetailScreen(nav: Nav, id: String) {
                 OutlinedTextField(
                     v, { v = it },
                     modifier = Modifier.fillMaxWidth().height(360.dp),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = Mono),
                 )
             },
             confirmButton = {
@@ -612,9 +612,9 @@ private fun IssueHeader(
         )
         Spacer(Modifier.height(6.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AssistChip(onClick = { onSheet("status") }, label = { Text(statusLabel(issue.status)) }, leadingIcon = { StatusIcon(issue.status, 14.dp) })
-            AssistChip(onClick = { onSheet("priority") }, label = { Text(issue.priority.replaceFirstChar { it.uppercase() }) }, leadingIcon = { PriorityIcon(issue.priority, 16.dp) })
-            AssistChip(
+            PropertyChip(onClick = { onSheet("status") }, label = { Text(statusLabel(issue.status)) }, leadingIcon = { StatusIcon(issue.status, 14.dp) })
+            PropertyChip(onClick = { onSheet("priority") }, label = { Text(issue.priority.replaceFirstChar { it.uppercase() }) }, leadingIcon = { PriorityIcon(issue.priority, 16.dp) })
+            PropertyChip(
                 onClick = { onSheet("assignee") },
                 label = {
                     Text(
@@ -629,15 +629,15 @@ private fun IssueHeader(
                     when {
                         issue.assigneeAgentId != null -> AgentAvatar(issue.assigneeAgentId, 18.dp)
                         issue.assigneeUserId != null -> Avatar(AppState.userName(issue.assigneeUserId), null, 18.dp, isAgent = false)
-                        else -> Icon(Icons.Outlined.PersonOutline, null, Modifier.size(AssistChipDefaults.IconSize))
+                        else -> Icon(Icons.Outlined.PersonOutline, null, Modifier.size(18.dp))
                     }
                 },
             )
             val project = issue.project ?: AppState.project(issue.projectId)?.let { ProjectRef(it.id, it.name, it.color) }
-            AssistChip(
+            PropertyChip(
                 onClick = { onSheet("project") },
                 label = { Text(project?.name ?: "No project", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                leadingIcon = { Icon(Icons.Outlined.FolderOpen, null, Modifier.size(AssistChipDefaults.IconSize), tint = parseIssueColor(project?.color) ?: MaterialTheme.colorScheme.onSurfaceVariant) },
+                leadingIcon = { Icon(Icons.Outlined.FolderOpen, null, Modifier.size(18.dp), tint = parseIssueColor(project?.color) ?: MaterialTheme.colorScheme.onSurfaceVariant) },
             )
             issue.labels.orEmpty().forEach { l ->
                 Pill(l.name, parseIssueColor(l.color) ?: MaterialTheme.colorScheme.onSurfaceVariant, Modifier.padding(top = 14.dp))

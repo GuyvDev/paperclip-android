@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,7 +25,6 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -52,6 +52,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.bu.paperclip.data.AppState
@@ -158,7 +159,7 @@ fun <T> LoadContent(
     content: @Composable (T) -> Unit,
 ) {
     when (val s = loader.state.value) {
-        is Load.Loading -> Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        is Load.Loading -> SkeletonList(modifier)
         is Load.Err -> ErrorState(s.message, modifier) { loader.refresh() }
         is Load.Ok -> PullToRefreshBox(
             isRefreshing = loader.refreshing.value,
@@ -175,23 +176,35 @@ fun ErrorState(message: String, modifier: Modifier = Modifier, onRetry: () -> Un
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(Icons.Outlined.CloudOff, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(40.dp))
-        Spacer(Modifier.height(12.dp))
-        Text(message, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        StateIcon(Icons.Outlined.CloudOff)
         Spacer(Modifier.height(16.dp))
-        Button(onClick = onRetry) { Text("Retry") }
+        Text("Something went wrong", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(4.dp))
+        Text(message, textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(20.dp))
+        Button(onClick = onRetry) { Text("Try again") }
     }
 }
 
 @Composable
 fun EmptyState(text: String, icon: ImageVector = Icons.Outlined.Inbox, modifier: Modifier = Modifier) {
     Column(
-        modifier.fillMaxWidth().padding(vertical = 48.dp, horizontal = 24.dp),
+        modifier.fillMaxWidth().padding(vertical = 56.dp, horizontal = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(36.dp))
-        Spacer(Modifier.height(10.dp))
-        Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        StateIcon(icon)
+        Spacer(Modifier.height(14.dp))
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun StateIcon(icon: ImageVector) {
+    Box(
+        Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(26.dp))
     }
 }
 
@@ -333,10 +346,10 @@ fun Pill(text: String, color: Color, modifier: Modifier = Modifier, filled: Bool
         text,
         modifier = modifier
             .clip(RoundedCornerShape(50))
-            .background(if (filled) color else color.copy(alpha = 0.15f))
-            .padding(horizontal = 8.dp, vertical = 2.dp),
+            .background(if (filled) color else color.copy(alpha = 0.14f))
+            .padding(horizontal = 7.dp, vertical = 2.dp),
         color = if (filled) MaterialTheme.colorScheme.surface else color,
-        style = MaterialTheme.typography.labelSmall,
+        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
         maxLines = 1,
     )
 }
@@ -381,12 +394,12 @@ fun AgentAvatar(agentId: String?, size: Dp = 28.dp) {
 @Composable
 fun SectionHeader(text: String, modifier: Modifier = Modifier, trailing: @Composable (() -> Unit)? = null) {
     Row(
-        modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 18.dp, bottom = 6.dp),
+        modifier.fillMaxWidth().heightIn(min = 40.dp).padding(start = 16.dp, end = 8.dp, top = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, letterSpacing = 0.07.em),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
@@ -395,10 +408,10 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier, trailing: @Compos
 }
 
 @Composable
-fun Card(modifier: Modifier = Modifier, padding: PaddingValues = PaddingValues(14.dp), content: @Composable () -> Unit) {
+fun Card(modifier: Modifier = Modifier, padding: PaddingValues = PaddingValues(16.dp), content: @Composable () -> Unit) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) { Box(Modifier.padding(padding)) { content() } }

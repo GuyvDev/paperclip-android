@@ -37,11 +37,14 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextField
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -63,6 +66,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.bu.paperclip.ui.components.AppFilterChip
 import com.bu.paperclip.data.AppState
 import com.bu.paperclip.data.IssueComment
 import com.bu.paperclip.data.Repo
@@ -267,7 +271,8 @@ internal fun IssueComposer(
         }
     }
 
-    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, tonalElevation = 2.dp) {
+    val hairline = MaterialTheme.colorScheme.outlineVariant
+    Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.drawBehind { drawLine(hairline, Offset.Zero, Offset(size.width, 0f), 1.dp.toPx()) }) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = 8.dp, vertical = 6.dp)) {
             if (uploads.isNotEmpty()) {
                 Row(Modifier.horizontalScroll(rememberScrollState()).padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -287,7 +292,7 @@ internal fun IssueComposer(
                 }
             }
             if (runLive) {
-                FilterChip(
+                AppFilterChip(
                     selected = interrupt,
                     onClick = { interrupt = !interrupt },
                     label = { Text(if (interrupt) "Will interrupt the running agent" else "Interrupt running agent") },
@@ -299,15 +304,34 @@ internal fun IssueComposer(
                 IconButton(onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
                     Icon(Icons.Outlined.Image, "Attach image")
                 }
-                OutlinedTextField(
+                TextField(
                     value = text,
                     onValueChange = { text = it },
-                    placeholder = { Text("Comment… (markdown)") },
+                    placeholder = { Text("Write a comment…") },
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp, max = 180.dp),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent,
+                    ),
                 )
-                IconButton(onClick = { send() }, enabled = canSend) {
-                    Icon(Icons.AutoMirrored.Filled.Send, "Send", tint = if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(6.dp))
+                val sendBg by androidx.compose.animation.animateColorAsState(
+                    if (canSend) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surfaceContainerHigh, label = "send",
+                )
+                IconButton(
+                    onClick = { send() },
+                    enabled = canSend,
+                    modifier = Modifier.padding(bottom = 2.dp).size(44.dp).background(sendBg, RoundedCornerShape(50)),
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Send, "Send",
+                        tint = if (canSend) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
             }
         }

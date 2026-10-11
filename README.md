@@ -25,7 +25,7 @@ It covers the board operator's daily loop: answer what agents ask, approve or de
 - **Live run transcripts** for Claude, Codex, ACP and Antigravity agents: messages, collapsible tool calls with their output, results and cost, streamed as they happen.
 - **Agents, approvals, costs and quotas, projects, goals, routines, activity and search.** Pause, resume or wake agents, reset sessions, and read or edit their instruction files.
 - **Notifications** for new items that need you, checked in the background about every 15 minutes.
-- Light and dark themes. Works on Android 8.0 and later.
+- A clean, monochrome design in light and dark, set in Inter. Works on Android 8.0 and later.
 
 ## Screenshots
 
@@ -84,6 +84,21 @@ It covers the board operator's daily loop: answer what agents ask, approve or de
   </tr>
 </table>
 
+### Sign-in, approvals and settings
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/screenshots/sign-in.png" alt="Connecting to a server"></td>
+    <td width="33%"><img src="docs/screenshots/approval.png" alt="A hire approval"></td>
+    <td width="33%"><img src="docs/screenshots/settings.png" alt="Settings"></td>
+  </tr>
+  <tr>
+    <td>Point it at your server and sign in.</td>
+    <td>Approve, reject or ask for a revision, with a note.</td>
+    <td>Account and connection, theme and notifications.</td>
+  </tr>
+</table>
+
 ### Light theme
 
 <table>
@@ -136,3 +151,5 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for the architecture, tests, rege
 ## Notes
 
 This is an unofficial client and isn't affiliated with the Paperclip project. Releases are debug-signed builds for sideloading.
+
+The app bundles the [Inter](https://rsms.me/inter/) and [JetBrains Mono](https://www.jetbrains.com/lp/mono/) fonts, both under the SIL Open Font License ([licenses](licenses)).

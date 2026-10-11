@@ -28,9 +28,9 @@ app/src/main/java/com/bu/paperclip/
 ├── ui/
 │   ├── AppRoot.kt        boot, sign-in phases and the tab shell
 │   ├── Nav.kt            routes and in-app link handling
-│   ├── components/       shared rows, pills, avatars, Markdown, task views
+│   ├── components/       shared rows, chips, bars, pills, avatars, Markdown, task views
 │   ├── screens/          one file (or a few) per screen
-│   └── theme/
+│   └── theme/            colours, type scale, shapes, fonts
 └── util/Time.kt          timestamp parsing and relative times
 ```
 
@@ -49,6 +49,22 @@ The app uses the same `/api` endpoints as the web UI. [`Repo.kt`](../app/src/mai
 **The task mirror.** `IssueStore` loads every task once using keyset paging (`sortField=id`, `afterId`, `limit=500`, `includeBlockedBy=true`). After that it asks only for `updatedSince` the last sync, triggered by `activity.logged` events, reconnects, or a 20-second poll while disconnected. Quick edits are applied locally first and rolled back if the server rejects them. `TaskGraph` builds the list groups, the tree (with ancestors kept as dimmed context), rollups, Next up and In flight from that map in memory.
 
 **Transcripts.** Run logs are NDJSON records of `{ts, stream, chunk, seq}`. `TranscriptBuilder` reassembles stdout lines and parses them by adapter: Claude stream-json, Codex `item.*` events, ACP `acpx.*` events and Antigravity `step_update`s. Unknown JSON events are hidden. Anything else shows as plain log lines.
+
+## Design
+
+The look follows Paperclip's web UI: neutral, monochrome chrome, with colour reserved for meaning (status, priority, live work, errors) so it stands out wherever it appears.
+
+- **Type.** Inter for the interface and JetBrains Mono for code, logs, commands and model names, bundled in `res/font` and subset to Latin, Greek, Cyrillic and common symbols. Other scripts fall back to the system font. Use the `MaterialTheme.typography` scale rather than ad-hoc sizes, and `TABULAR` figures for numbers that change or line up.
+- **Colour.** `Theme.kt` defines the light and dark schemes and `LocalStatusColors` for semantic colours. Selected and primary elements invert (light on dark, dark on light) instead of using an accent colour.
+- **Shared pieces** live in `ui/components`:
+  - `AppFilterChip` for filters and choices, `PropertyChip` for a task's editable properties
+  - `AppBottomBar` for the tab bar, `BarTitle` for two-line top bar titles
+  - `SectionHeader` and `SectionAction` for list sections, `Card` for grouped content
+  - `SkeletonList`, `EmptyState` and `ErrorState` for loading, empty and failed screens
+  - `BrandMark` for the logo tile
+
+  Use these instead of the stock Material components, so new screens match the rest.
+- **Launch screen and icon.** `res/drawable/launch_screen.xml` (with light and dark colours in `values` and `values-night`) shows the mark while the app starts. The launcher icon is an adaptive icon with a monochrome layer.
 
 ## Building
 

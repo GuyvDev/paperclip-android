@@ -3,14 +3,16 @@ package com.bu.paperclip
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import com.bu.paperclip.data.AppSettings
@@ -36,8 +38,16 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings by AppState.settings.flow.collectAsState(AppSettings(theme = "system"))
             val dark = when (settings.theme) { "dark" -> true; "light" -> false; else -> null }
+            val resolvedDark = dark ?: isSystemInDarkTheme()
+            // Status and navigation bar icons follow the app's theme, not just the system's.
+            LaunchedEffect(resolvedDark) {
+                val style = if (resolvedDark) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                else SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+            }
             PaperclipTheme(darkOverride = dark) {
-                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                // A Surface (not a plain Box) so screens without a Scaffold get the theme's text colour too.
+                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     AppRoot(pendingLink.value) { pendingLink.value = null }
                 }
             }

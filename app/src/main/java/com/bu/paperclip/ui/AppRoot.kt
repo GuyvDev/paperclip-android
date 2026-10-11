@@ -1,9 +1,10 @@
 package com.bu.paperclip.ui
 
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
@@ -18,16 +19,9 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.SmartToy
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -52,6 +46,8 @@ import com.bu.paperclip.data.AppState
 import com.bu.paperclip.net.Api
 import com.bu.paperclip.net.AuthState
 import com.bu.paperclip.net.LiveEvents
+import com.bu.paperclip.ui.components.AppBottomBar
+import com.bu.paperclip.ui.components.BarItem
 import com.bu.paperclip.ui.components.Links
 import com.bu.paperclip.ui.components.errorMessage
 import com.bu.paperclip.ui.screens.*
@@ -183,22 +179,13 @@ private fun MainShell(pendingLink: String?, onLinkConsumed: () -> Unit, onSigned
         snackbarHost = { SnackbarHost(snackHost) },
         bottomBar = {
             if (route in Routes.TABS) {
-                NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
-                    tabs.forEach { t ->
-                        val selected = route == t.route
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = { nav.tab(t.route) },
-                            icon = {
-                                val count = if (t.route == Routes.INBOX) badges.inbox + badges.approvals else 0
-                                BadgedBox(badge = { if (count > 0) Badge { Text(if (count > 99) "99+" else "$count") } }) {
-                                    Icon(if (selected) t.selectedIcon else t.icon, t.label)
-                                }
-                            },
-                            label = { Text(t.label) },
-                        )
-                    }
-                }
+                AppBottomBar(
+                    items = tabs.map { t ->
+                        BarItem(t.route, t.label, t.icon, t.selectedIcon, if (t.route == Routes.INBOX) badges.inbox + badges.approvals else 0)
+                    },
+                    selected = route,
+                    onSelect = { nav.tab(it) },
+                )
             }
         },
     ) { pad ->
@@ -206,10 +193,17 @@ private fun MainShell(pendingLink: String?, onLinkConsumed: () -> Unit, onSigned
             navController = controller,
             startDestination = Routes.DASHBOARD,
             modifier = Modifier.padding(pad).consumeWindowInsets(pad),
-            enterTransition = { fadeIn() },
-            exitTransition = { fadeOut() },
-            popEnterTransition = { EnterTransition.None },
-            popExitTransition = { ExitTransition.None },
+            // Tabs cross-fade; pushed screens slide in a little from the side and slide back out.
+            enterTransition = {
+                if (targetState.destination.route in Routes.TABS) fadeIn(tween(160))
+                else fadeIn(tween(200)) + slideInHorizontally(tween(260)) { it / 6 }
+            },
+            exitTransition = { fadeOut(tween(160)) },
+            popEnterTransition = { fadeIn(tween(160)) },
+            popExitTransition = {
+                if (initialState.destination.route in Routes.TABS) fadeOut(tween(120))
+                else fadeOut(tween(180)) + slideOutHorizontally(tween(220)) { it / 6 }
+            },
         ) {
             composable(Routes.DASHBOARD) { DashboardScreen(nav) }
             composable(Routes.INBOX) { InboxScreen(nav) }

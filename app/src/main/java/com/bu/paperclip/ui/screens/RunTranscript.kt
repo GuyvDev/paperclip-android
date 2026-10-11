@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bu.paperclip.ui.theme.Mono
 import com.bu.paperclip.data.TEntry
 import com.bu.paperclip.data.TranscriptBuilder
 import com.bu.paperclip.net.AppJson
@@ -93,7 +94,7 @@ class RunTranscriptState(adapterType: String?) {
     }
 }
 
-private val mono = FontFamily.Monospace
+private val mono = Mono
 
 @Composable
 fun RunEntryView(e: TEntry) {

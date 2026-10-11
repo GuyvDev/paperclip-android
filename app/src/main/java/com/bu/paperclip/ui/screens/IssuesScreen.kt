@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -49,7 +50,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -85,6 +85,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.bu.paperclip.ui.components.AppFilterChip
 import com.bu.paperclip.data.ACTIVE_STATUSES
 import com.bu.paperclip.data.ActiveRunRef
 import com.bu.paperclip.data.AppState
@@ -188,10 +189,10 @@ fun IssuesScreen(nav: Nav) {
                 TopAppBar(
                     title = {
                         Column {
-                            Text("Tasks")
+                            Text("Tasks", style = MaterialTheme.typography.headlineSmall)
                             Text(
                                 "${view.label} · ${model.matched.size} of ${issues.size}",
-                                style = MaterialTheme.typography.labelSmall,
+                                style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
@@ -296,13 +297,13 @@ private fun TaskPresetRow(f: TaskFilter, onChange: (TaskFilter) -> Unit) {
         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        FilterChip(f.statuses == ACTIVE_STATUSES, { onChange(f.copy(statuses = ACTIVE_STATUSES)) }, { Text("Active") })
-        FilterChip(f.assignees == setOf("me"), { onChange(f.copy(assignees = if (f.assignees == setOf("me")) emptySet() else setOf("me"))) }, { Text("Mine") })
-        FilterChip(f.liveOnly, { onChange(f.copy(liveOnly = !f.liveOnly)) }, { Text("Live") })
-        FilterChip(f.blockedOnly, { onChange(f.copy(blockedOnly = !f.blockedOnly)) }, { Text("Blocked") })
-        FilterChip(f.assignees == setOf("unassigned"), { onChange(f.copy(assignees = if (f.assignees == setOf("unassigned")) emptySet() else setOf("unassigned"))) }, { Text("Unassigned") })
-        FilterChip(f.statuses == setOf("done"), { onChange(f.copy(statuses = setOf("done"))) }, { Text("Done") })
-        FilterChip(f.statuses.isEmpty(), { onChange(f.copy(statuses = emptySet())) }, { Text("All") })
+        AppFilterChip(f.statuses == ACTIVE_STATUSES, { onChange(f.copy(statuses = ACTIVE_STATUSES)) }, { Text("Active") })
+        AppFilterChip(f.assignees == setOf("me"), { onChange(f.copy(assignees = if (f.assignees == setOf("me")) emptySet() else setOf("me"))) }, { Text("Mine") })
+        AppFilterChip(f.liveOnly, { onChange(f.copy(liveOnly = !f.liveOnly)) }, { Text("Live") })
+        AppFilterChip(f.blockedOnly, { onChange(f.copy(blockedOnly = !f.blockedOnly)) }, { Text("Blocked") })
+        AppFilterChip(f.assignees == setOf("unassigned"), { onChange(f.copy(assignees = if (f.assignees == setOf("unassigned")) emptySet() else setOf("unassigned"))) }, { Text("Unassigned") })
+        AppFilterChip(f.statuses == setOf("done"), { onChange(f.copy(statuses = setOf("done"))) }, { Text("Done") })
+        AppFilterChip(f.statuses.isEmpty(), { onChange(f.copy(statuses = emptySet())) }, { Text("All") })
     }
 }
 
@@ -521,7 +522,7 @@ private fun TaskBoardView(m: TasksModel, nav: Nav, onLongPress: (Issue) -> Unit)
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         columns.forEachIndexed { idx, (s, cards) ->
-            FilterChip(
+            AppFilterChip(
                 selected = listState.firstVisibleItemIndex == idx,
                 onClick = { scope.launch { listState.animateScrollToItem(idx) } },
                 label = { Text("${statusLabel(s)} ${cards.size}") },
@@ -598,7 +599,7 @@ private fun TaskQuickSheet(
     onAssign: (IssueAssignee) -> Unit,
 ) {
     var assigning by remember { mutableStateOf(false) }
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+    ModalBottomSheet(onDismissRequest = onDismiss, modifier = Modifier.statusBarsPadding().padding(top = 12.dp), sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
         Column(Modifier.navigationBarsPadding().padding(bottom = 12.dp)) {
             Column(Modifier.padding(horizontal = 20.dp)) {
                 Text(issue.ref, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -615,13 +616,13 @@ private fun TaskQuickSheet(
             Text("Move to", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 20.dp, top = 14.dp, bottom = 6.dp))
             FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 ISSUE_STATUSES.forEach { s ->
-                    FilterChip(issue.status == s, { if (issue.status != s) onStatus(s) }, { Text(statusLabel(s)) }, leadingIcon = { StatusIcon(s, 12.dp) })
+                    AppFilterChip(issue.status == s, { if (issue.status != s) onStatus(s) }, { Text(statusLabel(s)) }, leadingIcon = { StatusIcon(s, 12.dp) })
                 }
             }
             Text("Priority", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 20.dp, top = 10.dp, bottom = 6.dp))
             FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 PRIORITIES.forEach { p ->
-                    FilterChip(issue.priority == p, { if (issue.priority != p) onPriority(p) }, { Text(p.replaceFirstChar { it.uppercase() }) }, leadingIcon = { PriorityIcon(p, 14.dp) })
+                    AppFilterChip(issue.priority == p, { if (issue.priority != p) onPriority(p) }, { Text(p.replaceFirstChar { it.uppercase() }) }, leadingIcon = { PriorityIcon(p, 14.dp) })
                 }
             }
             Row(
@@ -658,7 +659,7 @@ private fun TaskFilterSheet(f: TaskFilter, onChange: (TaskFilter) -> Unit, onDis
     LaunchedEffect(Unit) { labels = runCatching { Repo.labels(AppState.cid) }.getOrDefault(emptyList()) }
     fun <T> Set<T>.toggle(v: T) = if (v in this) this - v else this + v
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+    ModalBottomSheet(onDismissRequest = onDismiss, modifier = Modifier.statusBarsPadding().padding(top = 12.dp), sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
         Column(Modifier.navigationBarsPadding().verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Filters", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
@@ -667,29 +668,29 @@ private fun TaskFilterSheet(f: TaskFilter, onChange: (TaskFilter) -> Unit, onDis
             TaskSheetSection("Status")
             FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 ISSUE_STATUSES.forEach { s ->
-                    FilterChip(s in f.statuses, { onChange(f.copy(statuses = f.statuses.toggle(s))) }, { Text(statusLabel(s)) }, leadingIcon = { StatusIcon(s, 12.dp) })
+                    AppFilterChip(s in f.statuses, { onChange(f.copy(statuses = f.statuses.toggle(s))) }, { Text(statusLabel(s)) }, leadingIcon = { StatusIcon(s, 12.dp) })
                 }
             }
             TaskSheetSection("Priority")
             FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 PRIORITIES.forEach { p ->
-                    FilterChip(p in f.priorities, { onChange(f.copy(priorities = f.priorities.toggle(p))) }, { Text(p.replaceFirstChar { it.uppercase() }) }, leadingIcon = { PriorityIcon(p, 14.dp) })
+                    AppFilterChip(p in f.priorities, { onChange(f.copy(priorities = f.priorities.toggle(p))) }, { Text(p.replaceFirstChar { it.uppercase() }) }, leadingIcon = { PriorityIcon(p, 14.dp) })
                 }
             }
             TaskSheetSection("Assignee")
             FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                FilterChip("me" in f.assignees, { onChange(f.copy(assignees = f.assignees.toggle("me"))) }, { Text("Me") })
-                FilterChip("unassigned" in f.assignees, { onChange(f.copy(assignees = f.assignees.toggle("unassigned"))) }, { Text("Unassigned") })
+                AppFilterChip("me" in f.assignees, { onChange(f.copy(assignees = f.assignees.toggle("me"))) }, { Text("Me") })
+                AppFilterChip("unassigned" in f.assignees, { onChange(f.copy(assignees = f.assignees.toggle("unassigned"))) }, { Text("Unassigned") })
                 agents.sortedBy { it.name }.forEach { a ->
-                    FilterChip(a.id in f.assignees, { onChange(f.copy(assignees = f.assignees.toggle(a.id))) }, { Text(a.name) }, leadingIcon = { AgentAvatar(a.id, 18.dp) })
+                    AppFilterChip(a.id in f.assignees, { onChange(f.copy(assignees = f.assignees.toggle(a.id))) }, { Text(a.name) }, leadingIcon = { AgentAvatar(a.id, 18.dp) }, keepIcon = true)
                 }
             }
             if (projects.isNotEmpty()) {
                 TaskSheetSection("Project")
                 FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    FilterChip("none" in f.projects, { onChange(f.copy(projects = f.projects.toggle("none"))) }, { Text("No project") })
+                    AppFilterChip("none" in f.projects, { onChange(f.copy(projects = f.projects.toggle("none"))) }, { Text("No project") })
                     projects.filter { it.archivedAt == null }.forEach { p ->
-                        FilterChip(p.id in f.projects, { onChange(f.copy(projects = f.projects.toggle(p.id))) }, { Text(p.name) })
+                        AppFilterChip(p.id in f.projects, { onChange(f.copy(projects = f.projects.toggle(p.id))) }, { Text(p.name) })
                     }
                 }
             }
@@ -697,9 +698,10 @@ private fun TaskFilterSheet(f: TaskFilter, onChange: (TaskFilter) -> Unit, onDis
                 TaskSheetSection("Labels")
                 FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     labels.forEach { l ->
-                        FilterChip(
+                        AppFilterChip(
                             l.id in f.labels, { onChange(f.copy(labels = f.labels.toggle(l.id))) }, { Text(l.name) },
                             leadingIcon = { Box(Modifier.size(10.dp).clip(RoundedCornerShape(5.dp)).background(parseIssueColor(l.color) ?: MaterialTheme.colorScheme.outline)) },
+                            keepIcon = true,
                         )
                     }
                 }
@@ -711,14 +713,14 @@ private fun TaskFilterSheet(f: TaskFilter, onChange: (TaskFilter) -> Unit, onDis
             TaskSheetSection("Sort")
             FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("updated" to "Recently active", "priority" to "Priority", "created" to "Newest", "number" to "Number").forEach { (k, label) ->
-                    FilterChip(f.sort == k, { onChange(f.copy(sort = k)) }, { Text(label) })
+                    AppFilterChip(f.sort == k, { onChange(f.copy(sort = k)) }, { Text(label) })
                 }
             }
             if (showGroup) {
                 TaskSheetSection("Group list by")
                 FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("status" to "Status", "priority" to "Priority", "assignee" to "Assignee", "project" to "Project", "parent" to "Parent", "none" to "None").forEach { (k, label) ->
-                        FilterChip(f.groupBy == k, { onChange(f.copy(groupBy = k)) }, { Text(label) })
+                        AppFilterChip(f.groupBy == k, { onChange(f.copy(groupBy = k)) }, { Text(label) })
                     }
                 }
             }

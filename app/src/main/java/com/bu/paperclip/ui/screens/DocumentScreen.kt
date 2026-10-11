@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import com.bu.paperclip.ui.theme.Mono
 import com.bu.paperclip.data.AppState
 import com.bu.paperclip.data.IssueDocument
 import com.bu.paperclip.data.Repo
@@ -123,7 +124,7 @@ fun DocumentScreen(nav: Nav, issueId: String, key: String) {
                         OutlinedTextField(
                             value = draft,
                             onValueChange = { draft = it },
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = Mono),
                             modifier = Modifier.fillMaxSize(),
                         )
                     }

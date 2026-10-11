@@ -193,11 +193,11 @@ Transcripts support Claude, Codex, ACP and Antigravity agents. Output from other
 
 Open **Settings** from Home or More:
 
-- **Account**: who you're signed in as and whether the live connection is up.
+- **Account**: who you're signed in as, the server, how you're connected and whether the live connection is up.
 - **Company**: switch between companies if you have more than one.
 - **Appearance**: follow the system, or always use dark or light.
 - **Notifications**: **Agent requests** checks about every 15 minutes for new questions, confirmations, approvals and failed runs, and posts a notification for each. Tapping one opens the item. **Check now** runs the check immediately.
-- **Server**: the server URL and how you're connected. **Sign out** clears the app's Paperclip and sign-in proxy sessions.
+- **Sign out** clears the app's Paperclip and sign-in proxy sessions.
 
 ## Live updates
 

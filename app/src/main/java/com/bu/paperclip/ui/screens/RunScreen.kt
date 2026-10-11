@@ -23,11 +23,9 @@ import androidx.compose.material.icons.outlined.Replay
 import androidx.compose.material.icons.outlined.StopCircle
 import androidx.compose.material.icons.outlined.KeyboardDoubleArrowDown
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -52,6 +50,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bu.paperclip.ui.theme.Mono
+import com.bu.paperclip.ui.components.PropertyChip
+import com.bu.paperclip.ui.components.AppFilterChip
 import com.bu.paperclip.data.Agent
 import com.bu.paperclip.data.AppState
 import com.bu.paperclip.data.HeartbeatRun
@@ -302,9 +303,9 @@ fun RunScreen(nav: Nav, id: String) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        FilterChip(view == RunView.Transcript, onClick = { view = RunView.Transcript }, label = { Text("Transcript") })
-                        FilterChip(view == RunView.Raw, onClick = { view = RunView.Raw }, label = { Text("Raw log") })
-                        FilterChip(view == RunView.Events, onClick = { view = RunView.Events }, label = { Text("Events") })
+                        AppFilterChip(view == RunView.Transcript, onClick = { view = RunView.Transcript }, label = { Text("Transcript") })
+                        AppFilterChip(view == RunView.Raw, onClick = { view = RunView.Raw }, label = { Text("Raw log") })
+                        AppFilterChip(view == RunView.Events, onClick = { view = RunView.Events }, label = { Text("Events") })
                         if (live) {
                             Spacer(Modifier.width(4.dp))
                             Pill(if (connected) "streaming" else "polling", if (connected) LocalStatusColors.current.blue else LocalStatusColors.current.yellow)
@@ -435,7 +436,7 @@ private fun RunHeader(r: HeartbeatRun, elapsed: String, agent: Agent?, issue: Is
         }
         if (r.status == "failed" || r.status == "timed_out") {
             Spacer(Modifier.height(6.dp))
-            AssistChip(onClick = onRetry, label = { Text("Retry run") }, leadingIcon = { Icon(Icons.Outlined.Replay, null) })
+            PropertyChip(onClick = onRetry, label = { Text("Retry run") }, leadingIcon = { Icon(Icons.Outlined.Replay, null, Modifier.size(18.dp)) })
         }
         if (runIsTerminal(r.status) && r.finishedAt != null) {
             Text("Finished ${absoluteTime(r.finishedAt)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -449,9 +450,9 @@ private fun RunEventRow(ev: RunEvent) {
     val color = when (ev.level) { "error" -> st.red; "warn" -> st.yellow; else -> MaterialTheme.colorScheme.onSurfaceVariant }
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("#${ev.seq}", style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("#${ev.seq}", style = MaterialTheme.typography.labelSmall.copy(fontFamily = Mono), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.width(8.dp))
-            Text(ev.eventType, style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace), color = color, modifier = Modifier.weight(1f))
+            Text(ev.eventType, style = MaterialTheme.typography.labelMedium.copy(fontFamily = Mono), color = color, modifier = Modifier.weight(1f))
             Text(relativeTime(ev.createdAt), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (!ev.message.isNullOrBlank()) {

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -25,8 +26,6 @@ import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -49,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.bu.paperclip.ui.components.PropertyChip
 import com.bu.paperclip.data.Agent
 import com.bu.paperclip.data.AppState
 import com.bu.paperclip.data.Issue
@@ -248,11 +248,10 @@ private val agentTaskSort = compareBy<Issue>(
 
 @Composable
 private fun AgentActionChip(label: String, icon: ImageVector, onClick: () -> Unit) {
-    AssistChip(
+    PropertyChip(
         onClick = onClick,
         label = { Text(label) },
-        leadingIcon = { Icon(icon, null) },
-        colors = AssistChipDefaults.assistChipColors(),
+        leadingIcon = { Icon(icon, null, Modifier.size(18.dp)) },
     )
 }
 

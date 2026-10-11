@@ -22,7 +22,6 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +48,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.bu.paperclip.ui.components.AppFilterChip
 import com.bu.paperclip.data.ActivityEvent
 import com.bu.paperclip.data.AppState
 import com.bu.paperclip.data.Repo
@@ -92,7 +92,7 @@ fun ActivityScreen(nav: Nav) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 activityFilters.forEachIndexed { i, label ->
-                    FilterChip(selected = filter == i, onClick = { filter = i }, label = { Text(label) })
+                    AppFilterChip(selected = filter == i, onClick = { filter = i }, label = { Text(label) })
                 }
             }
             LoadContent(loader) { events ->

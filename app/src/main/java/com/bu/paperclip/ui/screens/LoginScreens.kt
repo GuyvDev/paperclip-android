@@ -7,6 +7,31 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Mail
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import com.bu.paperclip.ui.components.BrandMark
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,49 +76,134 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
+/** Centred, branded column shared by the setup, sign-in and connecting screens. */
+@Composable
+private fun AuthLayout(title: String, subtitle: String?, content: @Composable ColumnScope.() -> Unit) {
+    // Weighted spacers centre the content; the min height keeps them working inside the scroll.
+    BoxWithConstraints(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
+        Column(
+            Modifier
+                .align(Alignment.TopCenter)
+                .widthIn(max = 480.dp)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .heightIn(min = maxHeight)
+                .padding(horizontal = 24.dp),
+        ) {
+            Spacer(Modifier.weight(1f).heightIn(min = 48.dp))
+            BrandMark(52.dp)
+            Spacer(Modifier.height(28.dp))
+            Text(title, style = MaterialTheme.typography.headlineMedium)
+            if (subtitle != null) {
+                Spacer(Modifier.height(8.dp))
+                Text(subtitle, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Spacer(Modifier.height(28.dp))
+            content()
+            Spacer(Modifier.weight(1.3f).heightIn(min = 32.dp))
+            Text(
+                "Unofficial client for Paperclip",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AuthField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    icon: ImageVector,
+    keyboard: KeyboardOptions,
+    placeholder: String? = null,
+    supporting: String? = null,
+    secret: Boolean = false,
+    onGo: (() -> Unit)? = null,
+) {
+    var reveal by remember { mutableStateOf(false) }
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        placeholder = placeholder?.let { { Text(it) } },
+        supportingText = supporting?.let { { Text(it) } },
+        leadingIcon = { Icon(icon, null, Modifier.size(20.dp)) },
+        trailingIcon = if (secret) {
+            { IconButton(onClick = { reveal = !reveal }) { Icon(if (reveal) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, if (reveal) "Hide" else "Show", Modifier.size(20.dp)) } }
+        } else null,
+        visualTransformation = if (secret && !reveal) PasswordVisualTransformation() else VisualTransformation.None,
+        singleLine = true,
+        shape = MaterialTheme.shapes.small,
+        keyboardOptions = keyboard,
+        keyboardActions = KeyboardActions(onGo = { onGo?.invoke() }),
+        colors = OutlinedTextFieldDefaults.colors(
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+            unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            focusedLeadingIconColor = MaterialTheme.colorScheme.onSurface,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
+private fun AuthButton(text: String, enabled: Boolean = true, busy: Boolean = false, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        enabled = enabled && !busy,
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier.fillMaxWidth().height(52.dp),
+    ) {
+        if (busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+        else Text(text, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold))
+    }
+}
+
+@Composable
+private fun AuthLink(text: String, onClick: () -> Unit) {
+    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Text(text, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
+    }
+}
+
 @Composable
 fun SetupScreen(initial: String, initialToken: String = "", onSave: (url: String, token: String) -> Unit) {
     var url by remember { mutableStateOf(initial.ifEmpty { "https://" }) }
     var token by remember { mutableStateOf(initialToken) }
     var showToken by remember { mutableStateOf(initialToken.isNotEmpty()) }
     val valid = url.trim().toHttpUrlOrNull()?.host?.isNotBlank() == true
-    Column(
-        Modifier.fillMaxSize().padding(24.dp).imePadding(),
-        verticalArrangement = Arrangement.Center,
+    val save = { if (valid) onSave(url.trim().trimEnd('/'), token.trim()) }
+    AuthLayout(
+        "Connect to Paperclip",
+        "Enter the address you open Paperclip at in your browser. You'll sign in next.",
     ) {
-        Text("Paperclip", style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "Enter the address you open Paperclip at in your browser. You'll sign in on the next screen; " +
-                "the app keeps that session (including Cloudflare Access) for all its requests.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        AuthField(
+            url, { url = it }, "Server URL", Icons.Outlined.Language,
+            KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
+            placeholder = "https://paperclip.example.com",
+            onGo = save,
         )
-        Spacer(Modifier.height(20.dp))
-        OutlinedTextField(
-            value = url,
-            onValueChange = { url = it },
-            label = { Text("Server URL") },
-            placeholder = { Text("https://paperclip.example.com") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
         if (showToken) {
-            OutlinedTextField(
-                value = token,
-                onValueChange = { token = it },
-                label = { Text("Board API key (optional)") },
-                placeholder = { Text("pcp_board_…") },
-                supportingText = { Text("Skips browser sign-in. Live updates fall back to polling with a key.") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+            AuthField(
+                token, { token = it }, "Board API key (optional)", Icons.Outlined.Key,
+                KeyboardOptions(imeAction = ImeAction.Go),
+                placeholder = "pcp_board_…",
+                supporting = "Skips sign-in. Without a session, live updates fall back to polling.",
+                secret = true,
+                onGo = save,
             )
-        } else {
-            TextButton(onClick = { showToken = true }) { Text("Use an API key instead") }
+            Spacer(Modifier.height(12.dp))
         }
-        Spacer(Modifier.height(16.dp))
-        Button(onClick = { onSave(url.trim().trimEnd('/'), token.trim()) }, enabled = valid, modifier = Modifier.fillMaxWidth()) { Text("Continue") }
+        Spacer(Modifier.height(8.dp))
+        AuthButton("Continue", enabled = valid, onClick = save)
+        if (!showToken) {
+            Spacer(Modifier.height(4.dp))
+            AuthLink("Use an API key instead") { showToken = true }
+        }
     }
 }
 
@@ -175,18 +285,26 @@ fun LoginScreen(baseUrl: String, onSignedIn: () -> Unit, onChangeServer: () -> U
 @Composable
 fun SplashScreen(message: String = "Connecting…", onRetry: (() -> Unit)? = null, onSignIn: (() -> Unit)? = null) {
     Column(
-        Modifier.fillMaxSize().padding(24.dp),
+        Modifier.fillMaxSize().systemBarsPadding().padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        if (onRetry == null) CircularProgressIndicator()
-        Spacer(Modifier.height(16.dp))
-        Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (onRetry != null) {
+        BrandMark(64.dp)
+        Spacer(Modifier.height(28.dp))
+        if (onRetry == null) {
+            LinearProgressIndicator(
+                Modifier.width(120.dp).clip(CircleShape),
+                color = MaterialTheme.colorScheme.onSurface,
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            )
             Spacer(Modifier.height(16.dp))
-            Button(onClick = onRetry) { Text("Retry") }
         }
-        if (onSignIn != null) TextButton(onClick = onSignIn) { Text("Sign in again") }
+        Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        if (onRetry != null) {
+            Spacer(Modifier.height(24.dp))
+            Button(onClick = onRetry, shape = MaterialTheme.shapes.small, modifier = Modifier.widthIn(min = 160.dp)) { Text("Try again") }
+        }
+        if (onSignIn != null) TextButton(onClick = onSignIn) { Text("Sign in again", color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }
 
@@ -244,66 +362,71 @@ fun SignInScreen(baseUrl: String, onSignedIn: () -> Unit, onChangeServer: () -> 
         return
     }
 
-    Column(
-        Modifier.fillMaxSize().padding(24.dp).imePadding(),
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text("Sign in", style = MaterialTheme.typography.headlineMedium)
-        Text(host, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(24.dp))
-        when (val g = gate) {
-            Gate.Checking -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            is Gate.Error -> {
-                Text(g.message, color = MaterialTheme.colorScheme.error)
-                Spacer(Modifier.height(12.dp))
-                Button(onClick = { probeKey++ }) { Text("Retry") }
-            }
-            is Gate.Required -> {
-                Text(
-                    "This server is protected by ${g.host}. Sign in there first; the app keeps that session.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(16.dp))
-                Button(onClick = { gateBrowser = true }, modifier = Modifier.fillMaxWidth()) { Text("Continue to ${g.host}") }
-            }
-            Gate.Open -> {
-                OutlinedTextField(
-                    value = email, onValueChange = { email = it; error = null },
-                    label = { Text("Email") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = password, onValueChange = { password = it; error = null },
-                    label = { Text("Password") }, singleLine = true,
-                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Go),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                error?.let { Spacer(Modifier.height(8.dp)); Text(it, color = MaterialTheme.colorScheme.error) }
-                Spacer(Modifier.height(16.dp))
-                Button(
-                    onClick = {
-                        busy = true
-                        scope.launch {
-                            try {
-                                Api.signIn(email, password)
-                                if (Api.checkSession()) onSignedIn() else error = "Signed in, but the session wasn't accepted."
-                            } catch (t: Throwable) {
-                                error = com.bu.paperclip.ui.components.errorMessage(t)
-                            } finally { busy = false }
-                        }
-                    },
-                    enabled = !busy && email.isNotBlank() && password.isNotEmpty(),
-                    modifier = Modifier.fillMaxWidth(),
-                ) { if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text("Sign in") }
+    val submit = {
+        if (!busy && email.isNotBlank() && password.isNotEmpty()) {
+            busy = true
+            scope.launch {
+                try {
+                    Api.signIn(email, password)
+                    if (Api.checkSession()) onSignedIn() else error = "Signed in, but the session wasn't accepted."
+                } catch (t: Throwable) {
+                    error = com.bu.paperclip.ui.components.errorMessage(t)
+                } finally { busy = false }
             }
         }
-        Spacer(Modifier.height(16.dp))
-        TextButton(onClick = { webFallback = true }) { Text("Sign in with the web page instead") }
-        TextButton(onClick = onChangeServer) { Text("Change server") }
     }
+
+    AuthLayout("Sign in", host) {
+        when (val g = gate) {
+            Gate.Checking -> Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 2.5.dp, color = MaterialTheme.colorScheme.onSurface)
+            }
+            is Gate.Error -> {
+                Notice(g.message, error = true)
+                Spacer(Modifier.height(16.dp))
+                AuthButton("Try again") { probeKey++ }
+            }
+            is Gate.Required -> {
+                Notice("This server is protected by ${g.host}. Sign in there first; the app keeps that session for everything else.")
+                Spacer(Modifier.height(16.dp))
+                AuthButton("Continue to ${g.host}") { gateBrowser = true }
+            }
+            Gate.Open -> {
+                AuthField(
+                    email, { email = it; error = null }, "Email", Icons.Outlined.Mail,
+                    KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                )
+                Spacer(Modifier.height(12.dp))
+                AuthField(
+                    password, { password = it; error = null }, "Password", Icons.Outlined.Lock,
+                    KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Go),
+                    secret = true,
+                    onGo = submit,
+                )
+                error?.let { Spacer(Modifier.height(12.dp)); Notice(it, error = true) }
+                Spacer(Modifier.height(20.dp))
+                AuthButton("Sign in", enabled = email.isNotBlank() && password.isNotEmpty(), busy = busy, onClick = submit)
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        AuthLink("Sign in with the web page instead") { webFallback = true }
+        AuthLink("Change server", onChangeServer)
+    }
+}
+
+@Composable
+private fun Notice(text: String, error: Boolean = false) {
+    val cs = MaterialTheme.colorScheme
+    Text(
+        text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = if (error) cs.onErrorContainer else cs.onSurface,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .background(if (error) cs.errorContainer else cs.surfaceContainerHigh)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+    )
 }
 
 @SuppressLint("SetJavaScriptEnabled")

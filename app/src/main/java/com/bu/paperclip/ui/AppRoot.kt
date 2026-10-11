@@ -1,0 +1,248 @@
+package com.bu.paperclip.ui
+
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.outlined.Checklist
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Inbox
+import androidx.compose.material.icons.outlined.Menu
+import androidx.compose.material.icons.outlined.SmartToy
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.bu.paperclip.data.AppState
+import com.bu.paperclip.net.Api
+import com.bu.paperclip.net.AuthState
+import com.bu.paperclip.net.LiveEvents
+import com.bu.paperclip.ui.components.Links
+import com.bu.paperclip.ui.components.errorMessage
+import com.bu.paperclip.ui.screens.*
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.launch
+
+private sealed class Phase {
+    data object Boot : Phase()
+    data object Setup : Phase()
+    data object Login : Phase()
+    data class Failed(val message: String) : Phase()
+    data object NoCompany : Phase()
+    data object Ready : Phase()
+}
+
+@Composable
+fun AppRoot(pendingLink: String?, onLinkConsumed: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var phase by remember { mutableStateOf<Phase>(Phase.Boot) }
+    var bootKey by remember { mutableStateOf(0) }
+    val auth by Api.auth.collectAsState()
+
+    LaunchedEffect(bootKey) {
+        val s = AppState.settings.current()
+        if (s.baseUrl.isEmpty()) { phase = Phase.Setup; return@LaunchedEffect }
+        Api.configure(s.baseUrl)
+        phase = Phase.Boot
+        try {
+            if (!Api.checkSession()) { phase = Phase.Login; return@LaunchedEffect }
+            AppState.loadSession()
+            AppState.loadCompanies(s.companyId)
+            if (AppState.company.value == null) { phase = Phase.NoCompany; return@LaunchedEffect }
+            AppState.refreshLookups()
+            phase = Phase.Ready
+        } catch (t: Throwable) {
+            phase = if (Api.auth.value == AuthState.SignedOut) Phase.Login else Phase.Failed(errorMessage(t))
+        }
+    }
+
+    // A session that expires mid-use (Cloudflare Access or Paperclip) drops back to the sign-in browser.
+    LaunchedEffect(auth) {
+        if (auth == AuthState.SignedOut && phase == Phase.Ready) phase = Phase.Login
+    }
+
+    when (val p = phase) {
+        Phase.Boot -> SplashScreen()
+        Phase.Setup -> SetupScreen(Api.baseUrl) { url ->
+            scope.launch { AppState.settings.setBaseUrl(url); bootKey++ }
+        }
+        Phase.Login -> LoginScreen(
+            baseUrl = Api.baseUrl,
+            onSignedIn = { bootKey++ },
+            onChangeServer = { phase = Phase.Setup },
+        )
+        is Phase.Failed -> SplashScreen(p.message, onRetry = { bootKey++ }, onSignIn = { phase = Phase.Login })
+        Phase.NoCompany -> SplashScreen("Your account has no Paperclip company yet.", onRetry = { bootKey++ })
+        Phase.Ready -> MainShell(pendingLink, onLinkConsumed, onSignedOut = { phase = Phase.Login })
+    }
+}
+
+private data class Tab(val route: String, val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
+
+private val tabs = listOf(
+    Tab(Routes.DASHBOARD, "Home", Icons.Outlined.Home, Icons.Filled.Home),
+    Tab(Routes.INBOX, "Inbox", Icons.Outlined.Inbox, Icons.Filled.Inbox),
+    Tab(Routes.ISSUES, "Tasks", Icons.Outlined.Checklist, Icons.Filled.Checklist),
+    Tab(Routes.AGENTS, "Agents", Icons.Outlined.SmartToy, Icons.Filled.SmartToy),
+    Tab(Routes.MORE, "More", Icons.Outlined.Menu, Icons.Filled.Menu),
+)
+
+@Composable
+private fun MainShell(pendingLink: String?, onLinkConsumed: () -> Unit, onSignedOut: () -> Unit) {
+    val controller = rememberNavController()
+    val nav = remember(controller) { Nav(controller) }
+    val backStack by controller.currentBackStackEntryAsState()
+    val route = backStack?.destination?.route
+    val company by AppState.company.collectAsState()
+    val badges by AppState.badges.collectAsState()
+    val snackHost = remember { SnackbarHostState() }
+    val snack by AppState.snack.collectAsState()
+
+    LaunchedEffect(snack) {
+        snack?.let { snackHost.showSnackbar(it); AppState.clearToast() }
+    }
+
+    DisposableEffect(nav) {
+        Links.handler = { nav.handleLink(it) }
+        onDispose { Links.handler = { false } }
+    }
+
+    LaunchedEffect(pendingLink) {
+        if (pendingLink != null) { nav.handleLink(pendingLink); onLinkConsumed() }
+    }
+
+    // Live socket follows the selected company and the app's foreground state.
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(company?.id, lifecycle) {
+        val cid = company?.id
+        val obs = LifecycleEventObserver { _, e ->
+            when (e) {
+                Lifecycle.Event.ON_START -> if (cid != null) LiveEvents.start(cid)
+                Lifecycle.Event.ON_STOP -> LiveEvents.stop()
+                else -> {}
+            }
+        }
+        lifecycle.addObserver(obs)
+        if (cid != null && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) LiveEvents.start(cid)
+        onDispose { lifecycle.removeObserver(obs) }
+    }
+
+    // Keep agent names/statuses and badge counts fresh.
+    LaunchedEffect(company?.id) {
+        LiveEvents.events
+            .filter { it.type == "agent.status" || it.type == "activity.logged" || it.type.startsWith("heartbeat.run.status") }
+            .debounce(800)
+            .collect {
+                if (it.type == "agent.status" || it.s("entityType") == "agent") AppState.refreshAgents()
+                AppState.refreshBadges()
+            }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackHost) },
+        bottomBar = {
+            if (route in Routes.TABS) {
+                NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+                    tabs.forEach { t ->
+                        val selected = route == t.route
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = { nav.tab(t.route) },
+                            icon = {
+                                val count = if (t.route == Routes.INBOX) badges.inbox + badges.approvals else 0
+                                BadgedBox(badge = { if (count > 0) Badge { Text(if (count > 99) "99+" else "$count") } }) {
+                                    Icon(if (selected) t.selectedIcon else t.icon, t.label)
+                                }
+                            },
+                            label = { Text(t.label) },
+                        )
+                    }
+                }
+            }
+        },
+    ) { pad ->
+        NavHost(
+            navController = controller,
+            startDestination = Routes.DASHBOARD,
+            modifier = Modifier.padding(bottom = pad.calculateBottomPadding()).consumeWindowInsets(pad),
+            enterTransition = { fadeIn() },
+            exitTransition = { fadeOut() },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None },
+        ) {
+            composable(Routes.DASHBOARD) { DashboardScreen(nav) }
+            composable(Routes.INBOX) { InboxScreen(nav) }
+            composable(Routes.ISSUES) { IssuesScreen(nav) }
+            composable(Routes.AGENTS) { AgentsScreen(nav) }
+            composable(Routes.MORE) { MoreScreen(nav) }
+            composable(Routes.ISSUE, listOf(navArgument("id") { type = NavType.StringType })) {
+                IssueDetailScreen(nav, it.arguments?.getString("id")!!)
+            }
+            composable(
+                Routes.NEW_ISSUE,
+                listOf(
+                    navArgument("parentId") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("projectId") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("assigneeAgentId") { type = NavType.StringType; defaultValue = "" },
+                ),
+            ) {
+                val a = it.arguments
+                NewIssueScreen(
+                    nav,
+                    a?.getString("parentId")?.ifEmpty { null },
+                    a?.getString("projectId")?.ifEmpty { null },
+                    a?.getString("assigneeAgentId")?.ifEmpty { null },
+                )
+            }
+            composable(Routes.DOCUMENT) { DocumentScreen(nav, it.arguments?.getString("issueId")!!, it.arguments?.getString("key")!!) }
+            composable(Routes.AGENT) { AgentDetailScreen(nav, it.arguments?.getString("id")!!) }
+            composable(Routes.RUN) { RunScreen(nav, it.arguments?.getString("id")!!) }
+            composable(Routes.INSTRUCTIONS) { InstructionsScreen(nav, it.arguments?.getString("agentId")!!) }
+            composable(Routes.APPROVALS) { ApprovalsScreen(nav) }
+            composable(Routes.APPROVAL) { ApprovalDetailScreen(nav, it.arguments?.getString("id")!!) }
+            composable(Routes.COSTS) { CostsScreen(nav) }
+            composable(Routes.PROJECTS) { ProjectsScreen(nav) }
+            composable(Routes.PROJECT) { ProjectDetailScreen(nav, it.arguments?.getString("id")!!) }
+            composable(Routes.GOALS) { GoalsScreen(nav) }
+            composable(Routes.ROUTINES) { RoutinesScreen(nav) }
+            composable(Routes.ACTIVITY) { ActivityScreen(nav) }
+            composable(Routes.SEARCH) { SearchScreen(nav) }
+            composable(Routes.SETTINGS) { SettingsScreen(nav, onSignedOut) }
+        }
+    }
+}

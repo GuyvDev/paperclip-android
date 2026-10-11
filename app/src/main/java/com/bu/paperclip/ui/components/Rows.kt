@@ -1,6 +1,7 @@
 package com.bu.paperclip.ui.components
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,11 +27,12 @@ import com.bu.paperclip.util.durationLabel
 import com.bu.paperclip.util.relativeTime
 
 /** Standard issue row: status, identifier, title, assignee, priority, recency, live/unread markers. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun IssueRow(issue: Issue, onClick: () -> Unit, modifier: Modifier = Modifier, showProject: Boolean = true) {
+fun IssueRow(issue: Issue, onClick: () -> Unit, modifier: Modifier = Modifier, showProject: Boolean = true, onLongClick: (() -> Unit)? = null) {
     rememberMinuteTick()
     Row(
-        modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 11.dp),
+        modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = onLongClick).padding(horizontal = 16.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         StatusIcon(issue.status, 16.dp)

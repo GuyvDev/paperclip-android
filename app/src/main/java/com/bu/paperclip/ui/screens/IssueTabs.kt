@@ -39,6 +39,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
+import com.bu.paperclip.data.openBlockers
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -125,27 +127,78 @@ internal fun IssueDocsTab(issue: Issue, docs: List<IssueDocument>?, nav: Nav) {
 
 @Composable
 internal fun IssueSubtasksTab(issue: Issue, children: List<Issue>?, nav: Nav) {
+    val all by com.bu.paperclip.data.IssueStore.issues.collectAsState()
+    val live by com.bu.paperclip.data.IssueStore.liveIssueIds.collectAsState()
+    val me by AppState.me.collectAsState()
+    var showClosed by remember(issue.id) { mutableStateOf(false) }
+    val collapsed = remember(issue.id) { androidx.compose.runtime.mutableStateMapOf<String, Boolean>() }
+    val graph = remember(all, live, me) {
+        com.bu.paperclip.data.TaskGraph(all.values, com.bu.paperclip.data.MatchCtx(me?.id, live) { all[it]?.status })
+    }
     Column {
-        OutlinedButton(
-            onClick = { nav.newIssue(parentId = issue.id, projectId = issue.projectId) },
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        ) { Icon(Icons.Outlined.Add, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("New sub-task") }
-        when {
-            children == null -> IssueTabLoading()
-            children.isEmpty() -> EmptyState("No sub-tasks")
-            else -> {
-                val done = children.count { it.status == "done" || it.status == "cancelled" }
-                Text(
-                    "$done of ${children.size} closed",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
-                children.forEach { c ->
-                    IssueRow(c, onClick = { nav.issue(c.identifier ?: c.id) }, showProject = false)
-                    Divider()
-                }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(onClick = { nav.newIssue(parentId = issue.id, projectId = issue.projectId) }) {
+                Icon(Icons.Outlined.Add, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("New sub-task")
             }
+            Spacer(Modifier.weight(1f))
+            Text("Show closed", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.width(6.dp))
+            androidx.compose.material3.Switch(showClosed, { showClosed = it })
+        }
+        if (!all.containsKey(issue.id)) {
+            // Mirror still loading: plain list of direct children.
+            when {
+                children == null -> IssueTabLoading()
+                children.isEmpty() -> EmptyState("No sub-tasks")
+                else -> children.forEach { c -> IssueRow(c, onClick = { nav.issue(c.identifier ?: c.id) }, showProject = false); Divider() }
+            }
+            return@Column
+        }
+        val rollup = graph.rollup(issue.id)
+        if (rollup.total == 0) { EmptyState("No sub-tasks"); return@Column }
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+            com.bu.paperclip.ui.components.RollupBar(rollup)
+            Text(
+                "${rollup.open} open · ${rollup.inFlight} in flight · ${rollup.blocked} blocked · ${rollup.closed} closed",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+        val next = graph.nextUp(issue.id, 50)
+        com.bu.paperclip.ui.components.NextUpCard(
+            next.take(3), graph.inFlight(issue.id),
+            onOpen = { nav.issue(it.identifier ?: it.id) },
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+        )
+        val filter = com.bu.paperclip.data.TaskFilter(
+            statuses = if (showClosed) emptySet() else com.bu.paperclip.data.ACTIVE_STATUSES,
+            sort = "plan",
+        )
+        val forest = graph.forest(filter, issue.id)
+        if (forest.isEmpty()) {
+            Text(
+                "All ${rollup.total} sub-tasks are closed.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(16.dp),
+            )
+            return@Column
+        }
+        val nextIds = next.mapTo(HashSet()) { it.issue.id }
+        fun isCollapsed(n: com.bu.paperclip.data.TaskNode) = collapsed[n.issue.id] ?: false
+        fun walk(n: com.bu.paperclip.data.TaskNode): List<com.bu.paperclip.data.TaskNode> = listOf(n) + n.children.flatMap { walk(it) }
+        val flat = com.bu.paperclip.ui.components.flattenTree(forest, forest.flatMap { walk(it) }.filter { isCollapsed(it) }.mapTo(HashSet()) { it.issue.id })
+        flat.forEach { n ->
+            com.bu.paperclip.ui.components.TaskTreeRow(
+                node = n,
+                expanded = !isCollapsed(n),
+                live = n.issue.id in live,
+                blocked = !com.bu.paperclip.data.isClosed(n.issue.status) &&
+                    (n.issue.status == "blocked" || with(com.bu.paperclip.data.MatchCtx(me?.id, live) { all[it]?.status }) { n.issue.openBlockers(this).isNotEmpty() }),
+                isNext = n.issue.id in nextIds,
+                onToggle = { collapsed[n.issue.id] = !isCollapsed(n) },
+                onOpen = { nav.issue(n.issue.identifier ?: n.issue.id) },
+            )
         }
     }
 }

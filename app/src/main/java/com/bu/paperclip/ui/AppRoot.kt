@@ -163,6 +163,9 @@ private fun MainShell(pendingLink: String?, onLinkConsumed: () -> Unit, onSigned
         onDispose { lifecycle.removeObserver(obs) }
     }
 
+    // The local task mirror behind the Tasks views and sub-task trees.
+    LaunchedEffect(company?.id) { company?.id?.let { com.bu.paperclip.data.IssueStore.start(it) } }
+
     // Keep agent names/statuses and badge counts fresh.
     LaunchedEffect(company?.id) {
         LiveEvents.events

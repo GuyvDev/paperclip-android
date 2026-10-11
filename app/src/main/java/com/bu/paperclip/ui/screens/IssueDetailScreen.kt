@@ -566,14 +566,14 @@ fun IssueDetailScreen(nav: Nav, id: String) {
         "priority" -> IssuePrioritySheet(i.priority, onPick = { p -> if (p != i.priority) patch(i.copy(priority = p), jsonOf("priority" to p)) }, onDismiss = { sheet = null })
         "assignee" -> IssueAssigneeSheet(i.assigneeAgentId, i.assigneeUserId, onPick = { a ->
             when (a) {
-                is IssueAssignee.AgentA -> patch(i.copy(assigneeAgentId = a.id, assigneeUserId = null), jsonOf("assigneeAgentId" to a.id, "assigneeUserId" to null))
-                IssueAssignee.Me -> me?.id?.let { mid -> patch(i.copy(assigneeAgentId = null, assigneeUserId = mid), jsonOf("assigneeAgentId" to null, "assigneeUserId" to mid)) }
-                IssueAssignee.Nobody -> patch(i.copy(assigneeAgentId = null, assigneeUserId = null), jsonOf("assigneeAgentId" to null, "assigneeUserId" to null))
+                is IssueAssignee.AgentA -> patch(i.copy(assigneeAgentId = a.id, assigneeUserId = null), jsonOf("assigneeAgentId" to a.id, "assigneeUserId" to kotlinx.serialization.json.JsonNull))
+                IssueAssignee.Me -> me?.id?.let { mid -> patch(i.copy(assigneeAgentId = null, assigneeUserId = mid), jsonOf("assigneeAgentId" to kotlinx.serialization.json.JsonNull, "assigneeUserId" to mid)) }
+                IssueAssignee.Nobody -> patch(i.copy(assigneeAgentId = null, assigneeUserId = null), jsonOf("assigneeAgentId" to kotlinx.serialization.json.JsonNull, "assigneeUserId" to kotlinx.serialization.json.JsonNull))
             }
         }, onDismiss = { sheet = null })
         "project" -> IssueProjectSheet(i.projectId, onPick = { p ->
             val pr = AppState.project(p)
-            patch(i.copy(projectId = p, project = pr?.let { ProjectRef(it.id, it.name, it.color) }), jsonOf("projectId" to p))
+            patch(i.copy(projectId = p, project = pr?.let { ProjectRef(it.id, it.name, it.color) }), jsonOf("projectId" to (p ?: kotlinx.serialization.json.JsonNull)))
         }, onDismiss = { sheet = null })
     }
 }

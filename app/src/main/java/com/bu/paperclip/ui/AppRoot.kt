@@ -101,7 +101,7 @@ fun AppRoot(pendingLink: String?, onLinkConsumed: () -> Unit) {
         Phase.Setup -> SetupScreen(Api.baseUrl, Api.bearer ?: "") { url, token ->
             scope.launch { AppState.settings.setBaseUrl(url); AppState.settings.setApiToken(token); bootKey++ }
         }
-        Phase.Login -> if (Api.bearer != null) SplashScreen("The API key was rejected.", onRetry = { phase = Phase.Setup }) else LoginScreen(
+        Phase.Login -> if (Api.bearer != null) SplashScreen("The API key was rejected.", onRetry = { phase = Phase.Setup }) else SignInScreen(
             baseUrl = Api.baseUrl,
             onSignedIn = { bootKey++ },
             onChangeServer = { phase = Phase.Setup },

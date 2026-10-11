@@ -224,6 +224,36 @@ object Api {
         markSignedOut(); false
     }
 
+    /**
+     * Host of an auth proxy (e.g. Cloudflare Access) that intercepts API calls before Paperclip, or null
+     * when requests reach Paperclip directly.
+     */
+    suspend fun gateHost(): String? {
+        val r = execute(Request.Builder().url(url("/health")).get().build())
+        return r.use {
+            when {
+                it.code in 300..399 -> it.header("Location")?.let { loc -> runCatching { loc.toHttpUrl().host }.getOrNull() } ?: "a sign-in page"
+                it.header("Content-Type").orEmpty().contains("text/html") -> "a sign-in page"
+                else -> null
+            }
+        }
+    }
+
+    /** Native Paperclip (better-auth) email sign-in; the session cookie lands in the shared store. */
+    suspend fun signIn(email: String, password: String) {
+        requestJson(
+            "POST", "/auth/sign-in/email",
+            body = JsonObject(
+                mapOf(
+                    "email" to kotlinx.serialization.json.JsonPrimitive(email.trim()),
+                    "password" to kotlinx.serialization.json.JsonPrimitive(password),
+                    "rememberMe" to kotlinx.serialization.json.JsonPrimitive(true),
+                ),
+            ),
+        )
+        CookieManager.getInstance().flush()
+    }
+
     suspend fun signOut() {
         runCatching { requestJson("POST", "/auth/sign-out", body = JsonObject(emptyMap())) }
         CookieManager.getInstance().removeAllCookies(null)

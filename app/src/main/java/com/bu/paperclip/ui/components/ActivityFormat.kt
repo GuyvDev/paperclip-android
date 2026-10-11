@@ -56,7 +56,7 @@ fun activitySentence(e: ActivityEvent): String {
 
 /** In-app link for an activity event, if it points at something we can open. */
 fun activityLink(e: ActivityEvent): String? = when (e.entityType) {
-    "issue" -> "/issues/" + (e.d("identifier") ?: e.entityId ?: return null)
+    "issue" -> (e.d("identifier") ?: e.entityId)?.let { "/issues/$it" }
     "agent" -> e.entityId?.let { "agent://$it" }
     "approval" -> e.entityId?.let { "/approvals/$it" }
     "project" -> e.entityId?.let { "project://$it" }

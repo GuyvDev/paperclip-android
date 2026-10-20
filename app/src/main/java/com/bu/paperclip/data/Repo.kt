@@ -45,6 +45,23 @@ object Repo {
     // Inbox / attention
     suspend fun attention(cid: String, cursor: String? = null, limit: Int = 50, sort: String = "activity"): AttentionFeed =
         Api.get("/companies/$cid/attention", mapOf("sort" to sort, "limit" to limit, "cursor" to cursor))
+    /** Everything the Decisions desk shows, including the caller's own dismissals and snoozes. */
+    suspend fun attentionDesk(cid: String): AttentionFeed =
+        Api.get("/companies/$cid/attention", mapOf("includeDismissed" to "true", "all" to "true"))
+    suspend fun undismiss(cid: String, itemKey: String): JsonElement = Api.delete("/companies/$cid/inbox-dismissals/" + android.net.Uri.encode(itemKey))
+    suspend fun setDecideBy(cid: String, sourceKind: String, sourceId: String, decideBy: String?): JsonElement =
+        Api.put("/companies/$cid/decision-triage/$sourceKind/" + android.net.Uri.encode(sourceId), buildJsonObject { put("decideBy", toJson(decideBy)) })
+
+    // Decisions
+    suspend fun decision(id: String): Decision = Api.get("/decisions/$id")
+    suspend fun decisions(cid: String, status: String, limit: Int = 51): List<Decision> =
+        Api.get("/companies/$cid/decisions", mapOf("status" to status, "limit" to limit))
+    suspend fun decide(id: String, optionId: String, inputValues: Map<String, String>, idempotencyKey: String): Decision =
+        Api.post("/decisions/$id/decide", jsonOf("optionId" to optionId, "inputValues" to inputValues, "idempotencyKey" to idempotencyKey))
+    suspend fun dismissDecision(id: String): Decision = Api.post("/decisions/$id/dismiss", JsonObject(emptyMap()))
+    suspend fun decideJoinRequest(cid: String, id: String, approve: Boolean): JsonElement =
+        Api.post("/companies/$cid/join-requests/$id/" + if (approve) "approve" else "reject", JsonObject(emptyMap()))
+
     suspend fun dismiss(cid: String, itemKey: String): JsonElement = Api.post("/companies/$cid/inbox-dismissals", jsonOf("itemKey" to itemKey))
     suspend fun snooze(cid: String, itemKey: String, untilIso: String): JsonElement =
         Api.post("/companies/$cid/inbox-dismissals", jsonOf("itemKey" to itemKey, "kind" to "snooze", "snoozedUntil" to untilIso))
@@ -178,5 +195,8 @@ object Repo {
     suspend fun routines(cid: String): List<Routine> = Api.get("/companies/$cid/routines")
     suspend fun runRoutine(id: String): JsonElement = Api.post("/routines/$id/run", jsonOf("source" to "manual"))
     suspend fun updateRoutine(id: String, body: JsonObject): JsonElement = Api.patch("/routines/$id", body)
+    suspend fun routine(id: String): Routine = Api.get("/routines/$id")
+    suspend fun createRoutineTrigger(id: String, body: JsonObject): JsonElement = Api.post("/routines/$id/triggers", body)
+    suspend fun updateRoutineTrigger(triggerId: String, body: JsonObject): JsonElement = Api.patch("/routine-triggers/$triggerId", body)
     suspend fun search(cid: String, q: String): SearchResponse = Api.get("/companies/$cid/search", mapOf("q" to q, "limit" to 40))
 }

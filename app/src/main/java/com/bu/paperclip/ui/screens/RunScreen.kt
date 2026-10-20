@@ -21,11 +21,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Replay
 import androidx.compose.material.icons.outlined.StopCircle
-import androidx.compose.material.icons.outlined.KeyboardDoubleArrowDown
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -51,6 +49,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bu.paperclip.ui.theme.Mono
+import com.bu.paperclip.ui.components.JumpTarget
+import com.bu.paperclip.ui.components.ScrollJumpButton
 import com.bu.paperclip.ui.components.PropertyChip
 import com.bu.paperclip.ui.components.AppFilterChip
 import com.bu.paperclip.data.Agent
@@ -265,16 +265,12 @@ fun RunScreen(nav: Nav, id: String) {
             )
         },
         floatingActionButton = {
-            if (!atBottom && itemCount > 0) {
-                ExtendedFloatingActionButton(
-                    onClick = {
-                        follow = true
-                        scope.launch { val t = listState.layoutInfo.totalItemsCount; if (t > 0) listState.animateScrollToItem(t - 1) }
-                    },
-                    icon = { Icon(Icons.Outlined.KeyboardDoubleArrowDown, null) },
-                    text = { Text(if (live) "Jump to latest" else "Jump to end") },
-                )
-            }
+            ScrollJumpButton(
+                listState,
+                enabled = itemCount > 0,
+                label = { t -> if (t == JumpTarget.Top) "Jump to top" else if (live) "Jump to latest" else "Jump to end" },
+                onJump = { follow = it == JumpTarget.Bottom },
+            )
         },
     ) { pad ->
         LoadContent(runLoader, Modifier.padding(pad)) { r ->

@@ -19,6 +19,8 @@ object AppState {
     val users = MutableStateFlow<Map<String, SessionUser>>(emptyMap())
     val projects = MutableStateFlow<List<Project>>(emptyList())
     val badges = MutableStateFlow(SidebarBadges())
+    /** Items on the Decisions desk that are new today or due now (the web sidebar's Decisions count). */
+    val decisionsBadge = MutableStateFlow(0)
 
     private val _snack = MutableStateFlow<String?>(null)
     val snack: StateFlow<String?> = _snack
@@ -71,5 +73,6 @@ object AppState {
     suspend fun refreshBadges() {
         val c = cid.ifEmpty { return }
         runCatching { badges.value = Repo.badges(c) }
+        runCatching { decisionsBadge.value = Repo.attention(c, limit = 1).deskBadgeCount }
     }
 }

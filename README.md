@@ -5,7 +5,7 @@ A native Android client for a self-hosted [Paperclip](https://github.com/papercl
 It covers the board operator's daily loop: answer what agents ask, approve or decline, watch runs live, and decide what gets done next. It uses the same HTTP API and live-events WebSocket as the Paperclip web UI, so nothing needs to change on the server.
 
 <p align="center">
-  <img src="docs/screenshots/hero.png" alt="Dashboard, inbox, task tree and a live run transcript" width="100%">
+  <img src="docs/screenshots/hero.png" alt="Dashboard, decisions, task tree and a live run transcript" width="100%">
 </p>
 
 <p align="center">
@@ -18,29 +18,40 @@ It covers the board operator's daily loop: answer what agents ask, approve or de
 
 ## Highlights
 
-- **An inbox of what needs you.** Agent questions, confirmations, approvals, failed runs and blocked work are collected in one feed. Swipe to dismiss, long-press to snooze.
-- **Answer agents natively.** Questions (single choice, multiple choice or free text), confirmations including plan and tool-action approvals, checkbox choices, suggested tasks and item verdicts. Markdown, tables and code blocks render properly, so step-by-step instructions are easy to follow.
+- **A Decisions desk.** Agent decisions, questions, confirmations, approvals, failed runs and blocked work in one place, grouped into Decide now, New today and Earlier. Decide, confirm or approve right on the card, set when to decide, swipe to dismiss and long-press to snooze.
+- **Answer agents natively.** Questions (single choice, multiple choice or free text), confirmations including plan and tool-action approvals, checkbox choices, suggested tasks and item verdicts. Markdown and code blocks render properly, and tables keep readable columns and scroll sideways instead of squeezing onto the screen.
 - **Tasks as a list, a tree or a board,** over a local copy of every task that live events keep up to date, so filtering and switching views is instant.
 - **Next up.** For any branch of the tree, the app works out what can be started now (open, not waiting on a blocker, no open sub-tasks) and ranks it by priority and by how much other work it unblocks.
 - **Live run transcripts** for Claude, Codex, ACP and Antigravity agents: messages, collapsible tool calls with their output, results and cost, streamed as they happen.
-- **Agents, approvals, costs and quotas, projects, goals, routines, activity and search.** Pause, resume or wake agents, reset sessions, and read or edit their instruction files.
+- **Easy to get back out.** Deep in a trail of tasks, one tap (or a long-press on back) returns you to the tab you started from, and long threads have a jump button that follows your scroll direction.
+- **Agents, approvals, costs and quotas, projects, goals, routines, activity and search.** Pause, resume or wake agents, reset sessions, read or edit their instruction files, and edit routines and their schedules.
 - **Notifications** for new items that need you, checked in the background about every 15 minutes.
 - A clean, monochrome design in light and dark, set in Inter. Works on Android 8.0 and later.
 
 ## Screenshots
 
-### Inbox and agent requests
+### Decisions and agent requests
 
 <table>
   <tr>
-    <td width="33%"><img src="docs/screenshots/inbox.png" alt="Inbox"></td>
+    <td width="33%"><img src="docs/screenshots/decisions.png" alt="The Decisions desk"></td>
+    <td width="33%"><img src="docs/screenshots/decision-card.png" alt="An agent's decision opened in place"></td>
     <td width="33%"><img src="docs/screenshots/task-confirmation.png" alt="A confirmation card with step-by-step instructions"></td>
-    <td width="33%"><img src="docs/screenshots/task-questions.png" alt="A questions card"></td>
   </tr>
   <tr>
-    <td>Everything that needs you, in one feed.</td>
+    <td>Everything that needs you, sorted by when it needs deciding.</td>
+    <td>An agent's proposal with its comparison table and one button per option.</td>
     <td>An agent asks for a 5-minute DNS change, with commands to check it and a way to undo.</td>
+  </tr>
+  <tr>
+    <td width="33%"><img src="docs/screenshots/task-questions.png" alt="A questions card"></td>
+    <td width="33%"><img src="docs/screenshots/thread-table.png" alt="A review table in a task thread"></td>
+    <td width="33%"><img src="docs/screenshots/routine-edit.png" alt="Editing a routine"></td>
+  </tr>
+  <tr>
     <td>Agent questions, answered in place.</td>
+    <td>Wide tables keep their columns and scroll sideways.</td>
+    <td>Routines: instructions, default agent, schedules and overlap rules.</td>
   </tr>
 </table>
 
@@ -104,7 +115,7 @@ It covers the board operator's daily loop: answer what agents ask, approve or de
 <table>
   <tr>
     <td width="33%"><img src="docs/screenshots/light-dashboard.png" alt="Dashboard in light theme"></td>
-    <td width="33%"><img src="docs/screenshots/light-inbox.png" alt="Inbox in light theme"></td>
+    <td width="33%"><img src="docs/screenshots/light-decisions.png" alt="Decisions in light theme"></td>
     <td width="33%"><img src="docs/screenshots/light-tasks.png" alt="Tasks in light theme"></td>
   </tr>
 </table>

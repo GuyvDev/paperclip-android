@@ -1,12 +1,14 @@
 # User guide
 
-How to get around Paperclip for Android. The app has five tabs: **Home**, **Inbox**, **Tasks**, **Agents** and **More**.
+How to get around Paperclip for Android. The app has five tabs: **Home**, **Decisions**, **Tasks**, **Agents** and **More**.
 
 - [Home](#home)
+- [Decisions](#decisions)
 - [Inbox](#inbox)
 - [Answering agents](#answering-agents)
 - [Tasks](#tasks)
 - [A task's page](#a-tasks-page)
+- [Getting around](#getting-around)
 - [Agents and runs](#agents-and-runs)
 - [More](#more)
 - [Settings and notifications](#settings-and-notifications)
@@ -29,18 +31,46 @@ The dot next to the company name is green while the live connection is up and ye
 
 <br clear="right">
 
+## Decisions
+
+<img src="screenshots/decisions.png" alt="Decisions" width="280" align="right">
+
+**Decisions** is your desk: everything waiting on you, as on the web UI's Decisions page. It's grouped into:
+
+- **Decide now**: items you've marked for today, plus anything whose deadline has passed.
+- **New today**: what arrived today.
+- **Earlier**: everything else.
+
+The chips at the top filter by kind (agent requests, decisions, approvals, failed runs and so on). Tap a card to open it in place:
+
+- **Decisions** that an agent proposed show their reasoning (Markdown, tables included), any fields to fill in, and one button per option. Choosing an option applies its effects on the server. Options that would cancel a whole task tree ask you to type the task ID first. **Dismiss — no effects** closes it without doing anything.
+- **Confirmations** can be confirmed or declined right there. **Approvals** can be approved, rejected or sent back for changes.
+- Questions, failed runs and blocked work show a summary; **Open** takes you to where you answer or fix them.
+
+**When to decide…** sets a deadline (today, this week or whenever) that everyone on the board sees. **Swipe** a card away to dismiss it just for you, or **long-press** it to snooze it for an hour, four hours, until tomorrow or until next week. **Snoozed** and **Dismissed** at the bottom list what you've put aside, with **Restore**; **Decided** and **Expired** show the history.
+
+The Decisions badge counts what's new today or due now.
+
+<br clear="right">
+
+<img src="screenshots/decision-card.png" alt="An open decision" width="280" align="right">
+
+A decision opened in place: the agent's comparison table scrolls sideways, and each option says what it will do.
+
+<br clear="right">
+
 ## Inbox
 
 <img src="screenshots/inbox.png" alt="Inbox" width="280" align="right">
 
-**Needs me** is the attention feed: anything waiting on you, such as agent questions, confirmations, plan approvals, hire approvals, failed runs and blocked work. Each row says what kind of item it is, why it's here and which agent raised it. Tap a row to go straight to where you can act on it.
+The Inbox is under **More**, with its own badge. **Needs me** is the same attention feed as a plain list: anything waiting on you, such as agent questions, confirmations, plan approvals, hire approvals, failed runs and blocked work. Each row says what kind of item it is, why it's here and which agent raised it. Tap a row to go straight to where you can act on it.
 
 - **Swipe** a row away to dismiss it. **Undo** brings it back.
 - **Long-press** a row to snooze it for a while.
 
 **Unread** lists tasks with activity you haven't seen. **Mine** lists tasks you're involved in.
 
-The Inbox tab's badge counts what needs you.
+The badge on **More** counts what's in the Inbox and pending approvals.
 
 <br clear="right">
 
@@ -60,6 +90,8 @@ When an agent needs something from you, a card appears at the top of the task's 
 
 Card details are full Markdown, so tables, code blocks and links render as they do on the web.
 
+**Tables** keep readable columns on a phone: each column is as wide as its content (long cells wrap), and wide tables scroll sideways instead of squeezing to fit. A fade at the edge shows there's more. This applies everywhere agent output appears: threads, cards, documents, decisions and run transcripts.
+
 <br clear="right">
 
 ## Tasks
@@ -75,7 +107,7 @@ Switch views with the three icons in the header. The app remembers your choice.
 | | |
 |---|---|
 | <img src="screenshots/tasks-list.png" alt="List" width="240"> | **List** groups tasks under collapsible headers. Group by status (the default), priority, assignee, project or parent, or not at all. |
-| <img src="screenshots/tasks-tree.png" alt="Tree" width="240"> | **Tree** shows parents and their sub-tasks. Each parent shows a progress bar (done out of total sub-tasks) and pills for live runs and blocked sub-tasks. Branches whose sub-tasks are all done start collapsed. |
+| <img src="screenshots/tasks-tree.png" alt="Tree" width="240"> | **Tree** shows parents and their sub-tasks. Each parent shows a progress bar (done out of total sub-tasks) and pills for live runs and blocked sub-tasks. Branches whose sub-tasks are all done start collapsed. Branches you expand or collapse stay that way when you come back, even after restarting the app. |
 | <img src="screenshots/tasks-board.png" alt="Board" width="240"> | **Board** has one column per status. Swipe sideways, or tap a chip above the board to jump to a column. Cards show priority, assignee, parent task and sub-task progress. The Done column shows the 40 most recent. |
 
 Markers you'll see on tasks:
@@ -151,13 +183,17 @@ The top of a task shows its title, status, priority, assignee and project. Tap a
 
 The tabs are:
 
-- **Thread**: agent request cards waiting for you, then the conversation in order, with older comments loaded on demand. Write comments in Markdown, @-mention agents or people, and attach images. Long-press a comment to copy it.
+- **Thread**: agent request cards waiting for you, then the conversation in order, with older comments loaded on demand. In a long thread a round button follows your reading direction: scrolling down it jumps to the latest comment, scrolling up it flips to jump back to the top. Write comments in Markdown, @-mention agents or people, and attach images. Long-press a comment to copy it.
 - **Docs**: the task's documents, such as plans. You can read and edit them.
 - **Sub-tasks**: a tree of this task's sub-tasks with overall progress and **Next up** for this branch. **Show closed** adds finished sub-tasks. **New sub-task** is in the **⋮** menu.
 - **Files**: attachments and work products such as pull requests.
 - **Activity**: everything that happened to the task.
 
 The **⋮** menu also has **Copy link**, **Open in browser** and **Mark unread**.
+
+## Getting around
+
+Task, run and agent pages hide the bottom bar to leave room for reading, so following links from task to task can leave you several pages deep. Once you're two or more pages in, an icon for the tab you started from appears next to the back arrow: tap it to close every page at once and land back on that tab. **Long-pressing the back arrow** does the same.
 
 ## Agents and runs
 
@@ -174,7 +210,7 @@ An agent's page has four tabs:
 
 ### Run transcripts
 
-Open a run from Home, an agent's Runs tab or a task's live banner. **Transcript** shows the run as a conversation: the agent's messages, collapsed reasoning, and tool calls you can expand to see their input and output, with token counts and cost at the end. A live run streams as it goes; **Jump to latest** follows the output, and **Stop** cancels the run. **Raw log** and **Events** show the underlying data.
+Open a run from Home, an agent's Runs tab or a task's live banner. **Transcript** shows the run as a conversation: the agent's messages, collapsed reasoning, and tool calls you can expand to see their input and output, with token counts and cost at the end. A live run streams as it goes; **Jump to latest** follows the output (scroll up and it becomes **Jump to top**), and **Stop** cancels the run. **Raw log** and **Events** show the underlying data.
 
 Transcripts support Claude, Codex, ACP and Antigravity agents. Output from other adapters shows as plain log lines.
 
@@ -184,7 +220,9 @@ Transcripts support Claude, Codex, ACP and Antigravity agents. Output from other
 
 - **Approvals**: pending and past approvals, such as hiring an agent. Approve, reject or ask for a revision, with a note.
 - **Projects**: each project's lead, target date and tasks.
-- **Goals** and **Routines**. Routines can be run on demand or paused.
+- **Inbox**: unread and assigned tasks, plus the attention feed as a list. See [Inbox](#inbox).
+- **Goals**.
+- **Routines**: tap one to edit it. Change the title, instructions (with a preview), default agent, project and priority, and what happens when runs overlap or schedules are missed, then **Save**. Schedules are edited on the spot: every hour, every day, weekdays, weekly, monthly or a custom cron expression, in any time zone, and each can be paused or removed (with **Undo**). The switch at the top pauses or resumes the whole routine, and ▶ runs it now. If someone else saved the routine meanwhile, you choose whether to reload or overwrite. Variables and webhook triggers are still edited on the web.
 - **Costs & quotas**: spend against budget for this month, the last 7 or 30 days or all time; provider quota windows and when they reset; and cost by agent and by model.
 - **Activity**: the company's activity feed, filterable by agents, people or the system.
 - **Search** the company.

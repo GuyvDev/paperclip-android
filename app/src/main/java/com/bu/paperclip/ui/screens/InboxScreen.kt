@@ -121,7 +121,7 @@ fun InboxScreen(nav: Nav) {
     val scope = rememberCoroutineScope()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Inbox", style = MaterialTheme.typography.headlineSmall) }) },
+        topBar = { TopAppBar(title = { Text("Inbox", style = MaterialTheme.typography.headlineSmall) }, navigationIcon = { BackIcon { nav.back() } }) },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
@@ -251,7 +251,7 @@ private fun InboxNeedsMe(nav: Nav, cid: String, snackbar: SnackbarHostState, sco
     }
 }
 
-private fun inboxOpenAttention(nav: Nav, item: AttentionItem) {
+internal fun inboxOpenAttention(nav: Nav, item: AttentionItem) {
     val issueRef = item.relatedIssue?.let { it.identifier ?: it.id.ifEmpty { null } }
     val s = item.subject
     val issueKinds = setOf("issue_thread_interaction", "blocker_attention", "review", "recovery_action", "productivity_review")
@@ -269,10 +269,10 @@ private fun inboxOpenAttention(nav: Nav, item: AttentionItem) {
     }
 }
 
-private fun inboxDetailKind(item: AttentionItem): String? =
+internal fun inboxDetailKind(item: AttentionItem): String? =
     (item.detail?.get("kind") as? JsonPrimitive)?.contentOrNull
 
-private fun inboxIcon(item: AttentionItem): ImageVector = when (item.sourceKind) {
+internal fun inboxIcon(item: AttentionItem): ImageVector = when (item.sourceKind) {
     "issue_thread_interaction" -> when (inboxDetailKind(item)) {
         "questions" -> Icons.Outlined.QuestionAnswer
         "suggested_tasks" -> Icons.Outlined.Checklist
@@ -291,7 +291,7 @@ private fun inboxIcon(item: AttentionItem): ImageVector = when (item.sourceKind)
     else -> Icons.Outlined.NotificationsNone
 }
 
-private fun inboxKindLabel(item: AttentionItem): String = when (item.sourceKind) {
+internal fun inboxKindLabel(item: AttentionItem): String = when (item.sourceKind) {
     "issue_thread_interaction" -> when (inboxDetailKind(item)) {
         "questions" -> "Question"
         "plan_approval" -> "Plan approval"
@@ -379,7 +379,7 @@ private fun InboxAttentionRow(
                 }
                 val agentName = item.originAgentName
                 if (!agentName.isNullOrBlank()) {
-                    val agent = AppState.agents.value.firstOrNull { it.name == agentName }
+                    val agent = AppState.agents.collectAsState().value.firstOrNull { it.name == agentName }
                     Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         if (agent != null) { AgentAvatar(agent.id, 18.dp); Spacer(Modifier.width(6.dp)) }
                         Text(agentName, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -77,6 +77,9 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -125,7 +128,12 @@ import com.bu.paperclip.ui.components.TaskTreeRow
 import com.bu.paperclip.ui.components.errorMessage
 import com.bu.paperclip.ui.components.flattenTree
 import com.bu.paperclip.ui.components.statusLabel
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 
@@ -158,7 +166,9 @@ fun IssuesScreen(nav: Nav) {
     var refreshing by remember { mutableStateOf(false) }
     var quickEdit by remember { mutableStateOf<Issue?>(null) }
     var focusId by remember { mutableStateOf<String?>(null) }
-    val collapsed = remember { mutableStateMapOf<String, Boolean>() }
+    val cid = AppState.company.collectAsState().value?.id.orEmpty()
+    // Explicit expand/collapse choices survive leaving the screen and restarts; ids of deleted tasks are pruned.
+    val collapsed = rememberSavedFlags("tasks.collapsed.$cid") { id -> issues.isEmpty() || id in issues }
 
     LaunchedEffect(Unit) {
         AppState.settings.getString("tasks.view")?.let { k -> TaskView.entries.firstOrNull { it.key == k }?.let { view = it } }
@@ -339,6 +349,28 @@ private fun TaskActiveChips(f: TaskFilter, onChange: (TaskFilter) -> Unit) {
     }
 }
 
+/**
+ * A string→flag map persisted in settings under [prefKey]. Saved values load once; changes made before
+ * they arrive win. Writes are debounced, keep only keys accepted by [keep], and are capped at 2,000.
+ */
+@OptIn(FlowPreview::class)
+@Composable
+private fun rememberSavedFlags(prefKey: String, keep: (String) -> Boolean = { true }): SnapshotStateMap<String, Boolean> {
+    val map = remember(prefKey) { mutableStateMapOf<String, Boolean>() }
+    val keepNow by rememberUpdatedState(keep)
+    LaunchedEffect(prefKey) {
+        val ser = MapSerializer(String.serializer(), Boolean.serializer())
+        AppState.settings.getString(prefKey)?.let { saved ->
+            runCatching { AppJson.decodeFromString(ser, saved) }.getOrNull()?.forEach { (k, v) -> if (k !in map) map[k] = v }
+        }
+        snapshotFlow { map.toMap() }.drop(1).debounce(400).collect { now ->
+            val pruned = now.filterKeys { keepNow(it) }.entries.toList().takeLast(2000).associate { it.key to it.value }
+            AppState.settings.setString(prefKey, AppJson.encodeToString(ser, pruned))
+        }
+    }
+    return map
+}
+
 // ---------------- list ----------------
 
 private class TaskGroup(val key: String, val label: String, val leading: @Composable () -> Unit, val items: List<Issue>)
@@ -346,7 +378,7 @@ private class TaskGroup(val key: String, val label: String, val leading: @Compos
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TaskListView(m: TasksModel, nav: Nav, onLongPress: (Issue) -> Unit) {
-    val collapsedGroups = remember { mutableStateMapOf<String, Boolean>() }
+    val collapsedGroups = rememberSavedFlags("tasks.collapsedGroups.${AppState.company.collectAsState().value?.id.orEmpty()}.${m.filter.groupBy}")
     val groups: List<TaskGroup> = remember(m) {
         when (m.filter.groupBy) {
             "status" -> m.matched.groupBy { it.status }.entries.sortedBy { statusRankOf(it.key) }

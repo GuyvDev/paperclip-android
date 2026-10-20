@@ -27,11 +27,13 @@ app/src/main/java/com/bu/paperclip/
 ├── notify/NotifyWorker.kt  background check of the attention feed
 ├── ui/
 │   ├── AppRoot.kt        boot, sign-in phases and the tab shell
-│   ├── Nav.kt            routes and in-app link handling
+│   ├── Nav.kt            routes, tabs, in-app link handling and back-to-tab
 │   ├── components/       shared rows, chips, bars, pills, avatars, Markdown, task views
 │   ├── screens/          one file (or a few) per screen
 │   └── theme/            colours, type scale, shapes, fonts
-└── util/Time.kt          timestamp parsing and relative times
+└── util/
+    ├── Time.kt           timestamp parsing and relative times
+    └── Schedule.kt       routine cron presets: parse, describe, validate
 ```
 
 ## How it talks to Paperclip
@@ -47,6 +49,10 @@ The app uses the same `/api` endpoints as the web UI. [`Repo.kt`](../app/src/mai
 **Live updates.** `LiveEvents` keeps one WebSocket open to `/api/companies/{id}/events/ws` while the app is in the foreground and reconnects with backoff. It bumps an `epoch` on every reconnect so screens can refetch what they missed. While the socket is down, `LiveRefresh` and `PollWhileDisconnected` poll instead. The socket only accepts cookie sessions, so it's skipped in API-key mode.
 
 **The task mirror.** `IssueStore` loads every task once using keyset paging (`sortField=id`, `afterId`, `limit=500`, `includeBlockedBy=true`). After that it asks only for `updatedSince` the last sync, triggered by `activity.logged` events, reconnects, or a 20-second poll while disconnected. Quick edits are applied locally first and rolled back if the server rejects them. `TaskGraph` builds the list groups, the tree (with ancestors kept as dimmed context), rollups, Next up and In flight from that map in memory.
+
+**Decisions.** The Decisions tab reads the same attention feed as the web UI's Decisions page (`/companies/{id}/attention?includeDismissed=true&all=true`) and groups it client-side the way the web does: decide-by due today or overdue (in UTC days, like the server's badge count), created today, then the rest. Open agent decisions come from `/companies/{id}/decisions?status=open`; choosing an option posts `/decisions/{id}/decide` with a fresh idempotency key. Decide-by goes through `PUT /companies/{id}/decision-triage/{sourceKind}/{sourceId}`, which is shared; dismiss and snooze use the per-user `inbox-dismissals`. The tab badge is the feed's `deskBadgeCount`.
+
+**Markdown tables.** `Markdown()` splits top-level GFM tables out of the text (`splitMarkdownTables`, which skips code fences) and draws them with `MarkdownTable`: columns sized to their content up to 260 dp, wrapping beyond that, inside a horizontal scroll. The prose around them still goes through Markwon. Tables nested in lists or quotes fall back to Markwon's own table rendering.
 
 **Transcripts.** Run logs are NDJSON records of `{ts, stream, chunk, seq}`. `TranscriptBuilder` reassembles stdout lines and parses them by adapter: Claude stream-json, Codex `item.*` events, ACP `acpx.*` events and Antigravity `step_update`s. Unknown JSON events are hidden. Anything else shows as plain log lines.
 
@@ -99,7 +105,7 @@ Debug builds accept a `setupUrl` intent extra (and an optional `setupKey` board 
 adb shell am start -n com.bu.paperclip/.MainActivity --es setupUrl http://localhost:3100
 ```
 
-The demo server accepts any sign-in and keeps writes in memory until it restarts. It also accepts the live WebSocket, so the connection dot goes green, but it never pushes events.
+The demo server accepts any sign-in and keeps writes in memory until it restarts. It includes an open agent decision (with a comparison table), a review comment with a wide table on LUM-148, and editable routines, so Decisions, tables and the routine editor can all be tried. It also accepts the live WebSocket, so the connection dot goes green, but it never pushes events.
 
 ## Regenerating the screenshots
 

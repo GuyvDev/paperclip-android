@@ -53,10 +53,11 @@ class NotifyWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
                 }
                 val ref = item.relatedIssue?.identifier ?: item.subject.identifier
                 val body = listOfNotNull(ref, item.subject.title ?: item.relatedIssue?.title, item.whyNow).joinToString(" · ")
-                val link = item.relatedIssue?.identifier?.let { "/issues/$it" } ?: item.subject.href
+                val link = if (item.sourceKind == "decision") item.subject.href ?: "/decisions"
+                    else item.relatedIssue?.identifier?.let { "/issues/$it" } ?: item.subject.href
                 notify(applicationContext, item.id.hashCode(), title, body, link)
             }
-            if (fresh.size > 5) notify(applicationContext, 1, "${fresh.size} items need attention", "Open the inbox to review them", "/inbox")
+            if (fresh.size > 5) notify(applicationContext, 1, "${fresh.size} items need attention", "Open Decisions to review them", "/decisions")
             AppState.settings.setLastNotifiedAt(Instant.now().toString())
             Result.success()
         } catch (e: ApiException.AuthRequired) {

@@ -345,7 +345,7 @@ fun RoutinesScreen(nav: Nav) {
 @Composable
 private fun RoutineRow(nav: Nav, r: Routine, onRun: () -> Unit, onToggle: () -> Unit) {
     rememberMinuteTick()
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+    Column(Modifier.fillMaxWidth().clickable { nav.routine(r.id) }.padding(horizontal = 16.dp, vertical = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(r.title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
             Spacer(Modifier.width(8.dp))

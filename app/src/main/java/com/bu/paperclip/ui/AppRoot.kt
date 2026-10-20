@@ -7,6 +7,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Checklist
@@ -23,6 +24,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -109,15 +111,6 @@ fun AppRoot(pendingLink: String?, onLinkConsumed: () -> Unit) {
     }
 }
 
-private data class Tab(val route: String, val label: String, val icon: ImageVector, val selectedIcon: ImageVector)
-
-private val tabs = listOf(
-    Tab(Routes.DASHBOARD, "Home", Icons.Outlined.Home, Icons.Filled.Home),
-    Tab(Routes.INBOX, "Inbox", Icons.Outlined.Inbox, Icons.Filled.Inbox),
-    Tab(Routes.ISSUES, "Tasks", Icons.Outlined.Checklist, Icons.Filled.Checklist),
-    Tab(Routes.AGENTS, "Agents", Icons.Outlined.SmartToy, Icons.Filled.SmartToy),
-    Tab(Routes.MORE, "More", Icons.Outlined.Menu, Icons.Filled.Menu),
-)
 
 @Composable
 private fun MainShell(pendingLink: String?, onLinkConsumed: () -> Unit, onSignedOut: () -> Unit) {
@@ -127,6 +120,7 @@ private fun MainShell(pendingLink: String?, onLinkConsumed: () -> Unit, onSigned
     val route = backStack?.destination?.route
     val company by AppState.company.collectAsState()
     val badges by AppState.badges.collectAsState()
+    val decisionsBadge by AppState.decisionsBadge.collectAsState()
     val snackHost = remember { SnackbarHostState() }
     val snack by AppState.snack.collectAsState()
 
@@ -173,15 +167,22 @@ private fun MainShell(pendingLink: String?, onLinkConsumed: () -> Unit, onSigned
             }
     }
 
+    CompositionLocalProvider(LocalNav provides nav) {
     Scaffold(
         // Inner screens own the status-bar inset; this scaffold only reserves room for the bottom bar.
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        snackbarHost = { SnackbarHost(snackHost) },
+        // Without the bottom bar (pushed screens) keep toasts above the system navigation buttons.
+        snackbarHost = { SnackbarHost(snackHost, if (route in Routes.TABS) Modifier else Modifier.navigationBarsPadding()) },
         bottomBar = {
             if (route in Routes.TABS) {
                 AppBottomBar(
-                    items = tabs.map { t ->
-                        BarItem(t.route, t.label, t.icon, t.selectedIcon, if (t.route == Routes.INBOX) badges.inbox + badges.approvals else 0)
+                    items = AppTabs.map { t ->
+                        val badge = when (t.route) {
+                            Routes.DECISIONS -> decisionsBadge
+                            Routes.MORE -> badges.inbox + badges.approvals
+                            else -> 0
+                        }
+                        BarItem(t.route, t.label, t.icon, t.selectedIcon, badge)
                     },
                     selected = route,
                     onSelect = { nav.tab(it) },
@@ -206,6 +207,7 @@ private fun MainShell(pendingLink: String?, onLinkConsumed: () -> Unit, onSigned
             },
         ) {
             composable(Routes.DASHBOARD) { DashboardScreen(nav) }
+            composable(Routes.DECISIONS) { DecisionsScreen(nav) }
             composable(Routes.INBOX) { InboxScreen(nav) }
             composable(Routes.ISSUES) { IssuesScreen(nav) }
             composable(Routes.AGENTS) { AgentsScreen(nav) }
@@ -240,9 +242,11 @@ private fun MainShell(pendingLink: String?, onLinkConsumed: () -> Unit, onSigned
             composable(Routes.PROJECT) { ProjectDetailScreen(nav, it.arguments?.getString("id")!!) }
             composable(Routes.GOALS) { GoalsScreen(nav) }
             composable(Routes.ROUTINES) { RoutinesScreen(nav) }
+            composable(Routes.ROUTINE) { RoutineEditScreen(nav, it.arguments?.getString("id")!!) }
             composable(Routes.ACTIVITY) { ActivityScreen(nav) }
             composable(Routes.SEARCH) { SearchScreen(nav) }
             composable(Routes.SETTINGS) { SettingsScreen(nav, onSignedOut) }
         }
+    }
     }
 }

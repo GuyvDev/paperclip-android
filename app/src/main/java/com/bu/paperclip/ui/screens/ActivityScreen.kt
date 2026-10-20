@@ -124,7 +124,7 @@ private fun ActivityRow(e: ActivityEvent, onClick: () -> Unit) {
     ) {
         when (e.actorType) {
             "agent" -> AgentAvatar(e.actorId ?: e.agentId, 30.dp)
-            "user" -> Avatar(activityActor(e), AppState.users.value[e.actorId]?.image, 30.dp, isAgent = false)
+            "user" -> Avatar(activityActor(e), AppState.users.collectAsState().value[e.actorId]?.image, 30.dp, isAgent = false)
             else -> Avatar("Paperclip", null, 30.dp)
         }
         Spacer(Modifier.width(12.dp))

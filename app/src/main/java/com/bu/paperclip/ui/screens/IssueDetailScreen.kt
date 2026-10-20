@@ -27,7 +27,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardDoubleArrowDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Edit
@@ -48,7 +47,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -74,6 +72,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bu.paperclip.ui.theme.Mono
+import com.bu.paperclip.ui.components.ScrollJumpButton
 import com.bu.paperclip.ui.components.PropertyChip
 import com.bu.paperclip.data.ActivityEvent
 import com.bu.paperclip.data.AppState
@@ -402,11 +401,7 @@ fun IssueDetailScreen(nav: Nav, id: String) {
             }
         },
         floatingActionButton = {
-            if (tab == 0 && commentsLoaded && listState.canScrollForward && comments.size > 3) {
-                SmallFloatingActionButton(onClick = { scope.launch { listState.animateScrollToItem(maxOf(0, listState.layoutInfo.totalItemsCount - 1)) } }) {
-                    Icon(Icons.Default.KeyboardDoubleArrowDown, "Jump to latest")
-                }
-            }
+            ScrollJumpButton(listState, enabled = tab == 0 && commentsLoaded && comments.size > 3)
         },
     ) { pad ->
         when {

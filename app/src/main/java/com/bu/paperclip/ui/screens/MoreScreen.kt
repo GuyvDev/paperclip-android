@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.AttachMoney
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Gavel
+import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Search
@@ -73,6 +74,7 @@ fun MoreScreen(nav: Nav) {
             }
 
             SectionHeader("Work")
+            MoreRow(Icons.Outlined.Inbox, "Inbox", badges.inbox) { nav.inbox() }
             MoreRow(Icons.Outlined.Gavel, "Approvals", badges.approvals) { nav.approvals() }
             MoreRow(Icons.Outlined.FolderOpen, "Projects") { nav.projects() }
             MoreRow(Icons.Outlined.Flag, "Goals") { nav.goals() }

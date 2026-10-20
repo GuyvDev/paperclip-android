@@ -5,6 +5,10 @@ import android.text.method.LinkMovementMethod
 import android.util.TypedValue
 import android.view.View
 import android.widget.TextView
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -12,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.res.ResourcesCompat
 import com.bu.paperclip.R
@@ -95,15 +100,36 @@ fun prepareMarkdown(text: String): String = mentionRe.replace(text) { m ->
     if (scheme == "agent" || scheme == "project") "[$label]($href)" else "**$label**"
 }
 
-/** Renders GitHub-flavoured markdown with selectable text, images and in-app links. */
+/**
+ * Renders GitHub-flavoured markdown with selectable text, images and in-app links. Tables are drawn
+ * natively (see [MarkdownTable]) so they keep readable columns and scroll sideways on a phone.
+ */
 @Composable
 fun Markdown(text: String, modifier: Modifier = Modifier, fontSizeSp: Float = 15f, selectable: Boolean = true) {
+    val blocks = remember(text) { splitMarkdownTables(prepareMarkdown(text)) }
+    val single = blocks.singleOrNull() as? MdBlock.Prose
+    if (single != null) {
+        MarkdownText(single.text, modifier, fontSizeSp, selectable)
+        return
+    }
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        blocks.forEach { b ->
+            when (b) {
+                is MdBlock.Prose -> MarkdownText(b.text, Modifier.fillMaxWidth(), fontSizeSp, selectable)
+                is MdBlock.Table -> MarkdownTable(b, fontSizeSp, selectable, Modifier.fillMaxWidth().padding(vertical = 2.dp))
+            }
+        }
+    }
+}
+
+/** Markwon in a TextView, for [prepared] markdown (mentions already rewritten). */
+@Composable
+private fun MarkdownText(prepared: String, modifier: Modifier, fontSizeSp: Float, selectable: Boolean) {
     val context = LocalContext.current
     val color = LocalContentColor.current.toArgb()
     val link = MaterialTheme.colorScheme.tertiary.toArgb()
     val codeBg = MaterialTheme.colorScheme.surfaceContainerHighest.toArgb()
     val mw = remember(codeBg, Api.baseUrl) { markwon(context, codeBg) }
-    val prepared = remember(text) { prepareMarkdown(text) }
     AndroidView(
         modifier = modifier,
         factory = { ctx ->

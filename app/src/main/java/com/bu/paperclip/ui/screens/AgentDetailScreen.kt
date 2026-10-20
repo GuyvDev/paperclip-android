@@ -340,7 +340,7 @@ private fun LazyListScope.agentOverview(d: AgentDetailData, nav: Nav) {
     }
     item(key = "ov-org") {
         val manager = AppState.agent(a.reportsTo)
-        val reports = AppState.agents.value.filter { it.reportsTo == a.id }
+        val reports = AppState.agents.collectAsState().value.filter { it.reportsTo == a.id }
         SectionHeader("Team")
         Card(Modifier.padding(horizontal = 16.dp), padding = PaddingValues(vertical = 6.dp)) {
             Column {

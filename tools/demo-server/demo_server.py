@@ -379,6 +379,14 @@ comment(141, "atlas", "**Status:** the design is signed off (LUM-142). Kai is on
 comment(148, "kai", "PR #212 is ready: checkout session, the `invoice.paid` and `customer.subscription.updated` webhooks, and signature checks. Waiting on Nova's review (LUM-151).", 25)
 comment(161, "atlas", "Three teams in the beta asked for this. I'd rather you choose than guess: it changes what every new user sees on day one.", 18)
 comment(155, "mira", "Role picker done; it only offers roles up to your own. Working on the copy-link row.", 2)
+comment(148, "nova", "Review of PR #212 is done. Two things to fix before merge, the rest can follow:\n\n"
+        "| Severity | File | Finding | Suggested fix |\n"
+        "|:--|:--|:--|:--|\n"
+        "| **High** | `billing/webhooks.ts` | `invoice.paid` is processed twice when Stripe retries after a timeout | Store the event id and skip ones already seen |\n"
+        "| Medium | `billing/checkout.ts` | The success URL trusts the `plan` query parameter | Read the plan from the session on the server |\n"
+        "| Low | `billing/prices.ts` | Price ids are hard-coded for test mode | Load them from config per environment |\n"
+        "| Low | `README.md` | Missing local webhook setup steps | Add the `stripe listen` command |\n\n"
+        "Happy to re-review once the first two are in.", 20)
 
 INTERACTIONS[BY_NUM[160]["id"]] = [{
     "id": uid("int/dns"), "issueId": BY_NUM[160]["id"], "kind": "request_confirmation", "status": "pending",
@@ -473,13 +481,49 @@ APPROVALS = [{
 }]
 
 
-def attention():
+DECISION_ID = uid("decision/rollout")
+DECISIONS = [{
+    "id": DECISION_ID, "title": "How should the offline mode ship?", "status": "open", "originAgentId": None, "originIssueId": None,
+    "body": "Offline mode is ready behind a flag. Pick how it reaches users:\n\n"
+            "| Option | Reach in week 1 | Risk | Rollback |\n|:--|--:|:--|:--|\n"
+            "| Beta group | ~120 users | Low | Flip the flag |\n| 10% rollout | ~2,400 users | Medium | Flip the flag; cached data stays |\n"
+            "| Everyone | ~24,000 users | Higher | Needs an app update |",
+    "options": [
+        {"id": "beta", "label": "Beta group first", "description": "Atlas creates the beta task and assigns Kai.", "style": "primary", "effects": [{"type": "comment_on_issue"}]},
+        {"id": "ten", "label": "10% rollout", "description": None, "style": "default", "effects": [{"type": "comment_on_issue"}]},
+        {"id": "hold", "label": "Hold for now", "description": "Nothing ships; the task goes back to backlog.", "style": "destructive", "effects": [{"type": "update_issue_status"}]},
+    ],
+    "inputs": [{"id": "note", "label": "Note for Atlas", "placeholder": "Anything they should know", "required": False}],
+    "expiresAt": ahead(days=2), "createdAt": ago(minutes=50), "targetChanged": {}, "metadata": {},
+}, {
+    "id": uid("decision/old"), "title": "Use Postgres or SQLite for the sync log?", "status": "decided", "chosenOptionId": "pg", "executionStatus": "succeeded",
+    "options": [{"id": "pg", "label": "Postgres", "effects": []}, {"id": "lite", "label": "SQLite", "effects": []}],
+    "body": "", "decidedAt": ago(days=1), "createdAt": ago(days=2), "expiresAt": ago(days=1), "metadata": {},
+}]
+DISMISSALS = {}
+TRIAGE = {}
+
+
+def attention(params=None):
+    params = params or {}
     items = []
 
-    def add(kind, subject, why, sev, mins, origin, detail, rel=None):
+    def add(kind, subject, why, sev, mins, origin, detail, rel=None, verbs=None):
+        key = f"attention:{subject['id']}"
+        dm = DISMISSALS.get(key)
         items.append({"id": f"{kind}:{subject['id']}", "sourceKind": kind, "subject": subject, "relatedIssue": rel, "whyNow": why,
-                      "severity": sev, "activityAt": ago(minutes=mins), "createdAt": ago(minutes=mins), "dismissalKey": f"attention:{subject['id']}",
-                      "originAgentName": origin, "inlineResolvable": True, "detail": detail})
+                      "severity": sev, "activityAt": ago(minutes=mins), "createdAt": ago(minutes=mins), "dismissalKey": key,
+                      "originAgentName": origin, "inlineResolvable": True, "detail": detail, "decisionVerbs": verbs or [],
+                      "dismissal": dm, "decideBy": TRIAGE.get(subject["id"]), "shelf": False, "expiresAt": None})
+
+    d = DECISIONS[0]
+    if d["status"] == "open":
+        add("decision", {"kind": "decision", "id": d["id"], "title": d["title"], "status": "open", "href": f"/LUM/decisions?decisionId={d['id']}"},
+            "Atlas needs a call on the rollout plan", "medium", 50, "Atlas Opus", {"kind": "generic", "summaryExcerpt": "Offline mode is ready behind a flag."},
+            None, [{"id": "decide", "label": "Review"}])
+        items[-1]["expiresAt"] = d["expiresAt"]
+        if d["id"] not in TRIAGE:
+            items[-1]["decideBy"] = "today"
 
     def subj_issue(n):
         i = BY_NUM[n]
@@ -501,7 +545,10 @@ def attention():
         "Run failed after automatic retries were exhausted", "high", 240, "Rex Codex",
         {"kind": "failed_run", "failureReasonExcerpt": r["error"]}, subj_issue(166))
     add("blocker_attention", subj_issue(152), "Blocked by a critical review (LUM-151)", "medium", 120, "Rex Codex", {"kind": "blocker"})
-    return {"totalCount": len(items), "deskBadgeCount": len(items), "nextCursor": None, "items": items}
+    if params.get("includeDismissed") != "true":
+        items = [i for i in items if not (i["dismissal"] or {}).get("isActive")]
+    lim = int(params.get("limit") or 50)
+    return {"totalCount": len(items), "deskBadgeCount": len(items), "nextCursor": None, "items": items if params.get("all") == "true" else items[:lim]}
 
 
 def dashboard():
@@ -553,7 +600,8 @@ ROUTINES = [
     {"id": uid("routine/deps"), "title": "Dependency updates", "description": "Bump patch and minor versions, run the suite, open one PR.", "status": "active",
      "assigneeAgentId": A["rex"], "projectId": P["ops"], "lastTriggeredAt": ago(hours=16),
      "triggers": [{"id": "t1", "kind": "schedule", "label": "Mondays 06:00", "enabled": True, "cronExpression": "0 6 * * 1", "nextRunAt": ahead(days=1, hours=13)}],
-     "lastRun": {"id": "x", "status": "succeeded", "createdAt": ago(hours=16)}},
+     "lastRun": {"id": "x", "status": "succeeded", "createdAt": ago(hours=16)}, "priority": "medium",
+     "concurrencyPolicy": "coalesce_if_active", "catchUpPolicy": "skip_missed", "latestRevisionId": str(uuid.uuid4()), "variables": []},
     {"id": uid("routine/backup"), "title": "Nightly backup check", "description": "Restore last night's backup into a scratch database and compare row counts.", "status": "active",
      "assigneeAgentId": A["nova"], "projectId": P["ops"], "lastTriggeredAt": ago(hours=9),
      "triggers": [{"id": "t2", "kind": "schedule", "label": "Daily 03:00", "enabled": True, "cronExpression": "0 3 * * *", "nextRunAt": ahead(hours=10)}],
@@ -707,7 +755,34 @@ class Handler(BaseHTTPRequestHandler):
         if seg[0] == "projects":
             return PROJECT_BY_ID[seg[1]] | {"taskCount": sum(i["projectId"] == seg[1] for i in ISSUES.values())}
         if seg[0] == "routines":
-            return {"ok": True}
+            r = next(x for x in ROUTINES if x["id"] == seg[1])
+            rest = seg[2:]
+            if not rest:
+                if m == "PATCH":
+                    b.pop("baseRevisionId", None)
+                    r.update(b)
+                    r["latestRevisionId"] = str(uuid.uuid4())
+                return r
+            if rest == ["triggers"]:
+                t = {"id": str(uuid.uuid4()), "kind": b["kind"], "label": None, "enabled": True, "cronExpression": b.get("cronExpression"),
+                     "timezone": b.get("timezone"), "nextRunAt": ahead(hours=20), "archived": False}
+                r["triggers"].append(t)
+                return {"trigger": t}
+            if rest == ["run"]:
+                return {"id": str(uuid.uuid4()), "status": "issue_created"}
+            return {}
+        if seg[0] == "routine-triggers":
+            t = next(t for r in ROUTINES for t in r["triggers"] if t["id"] == seg[1])
+            t.update(b)
+            return t
+        if seg[0] == "decisions":
+            d = next(x for x in DECISIONS if x["id"] == seg[1])
+            rest = seg[2:]
+            if rest == ["decide"]:
+                d.update(status="decided", chosenOptionId=b["optionId"], executionStatus="succeeded", decidedAt=ago())
+            elif rest == ["dismiss"]:
+                d.update(status="decided", chosenOptionId="dismissed", decidedAt=ago())
+            return d
         raise KeyError(p)
 
     def company_api(self, m, seg, q, b):
@@ -721,7 +796,7 @@ class Handler(BaseHTTPRequestHandler):
         if head == "dashboard":
             return dashboard()
         if head == "sidebar-badges":
-            return {"inbox": attention()["totalCount"], "approvals": sum(a["status"] == "pending" for a in APPROVALS), "failedRuns": 1, "joinRequests": 0}
+            return {"inbox": attention({"all": "true"})["totalCount"], "approvals": sum(a["status"] == "pending" for a in APPROVALS), "failedRuns": 1, "joinRequests": 0}
         if head == "activity":
             out = ACTIVITY
             if q.get("agentId"):
@@ -730,9 +805,19 @@ class Handler(BaseHTTPRequestHandler):
         if head == "live-runs":
             return [live_run(r) for r in RUNS if r["status"] in ("running", "queued")] + [live_run(r) for r in RUNS if r["status"] not in ("running", "queued")][: max(0, int(q.get("minCount") or 0) - 3)]
         if head == "attention":
-            return attention()
+            return attention(q)
         if head == "inbox-dismissals":
-            return {"ok": True}
+            if m == "DELETE":
+                DISMISSALS.pop(urllib.parse.unquote(seg[1]), None)
+                return {}
+            kind = b.get("kind", "dismiss")
+            DISMISSALS[b["itemKey"]] = {"kind": kind, "dismissedAt": ago(), "snoozedUntil": b.get("snoozedUntil"), "isActive": True}
+            return {"id": str(uuid.uuid4()), "itemKey": b["itemKey"], "kind": kind}
+        if head == "decisions":
+            return [d for d in DECISIONS if not q.get("status") or d["status"] == q["status"]]
+        if head == "decision-triage":
+            TRIAGE[urllib.parse.unquote(seg[2])] = b.get("decideBy")
+            return {"decideBy": b.get("decideBy")}
         if head == "labels":
             return LABELS
         if head == "agents":

@@ -2,6 +2,7 @@ package com.bu.paperclip.data
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 
 @Serializable
@@ -312,6 +313,7 @@ data class AttentionSubject(
     val identifier: String? = null,
     val status: String? = null,
     val href: String? = null,
+    val metadata: JsonObject? = null,
 )
 
 @Serializable
@@ -328,7 +330,64 @@ data class AttentionItem(
     val originAgentName: String? = null,
     val inlineResolvable: Boolean = false,
     val detail: JsonObject? = null,
+    val decisionVerbs: List<AttentionVerb> = emptyList(),
+    val dismissal: AttentionDismissal? = null,
+    val decideBy: String? = null,
+    val snoozedUntil: String? = null,
+    val expiresAt: String? = null,
+    val shelf: Boolean = false,
+    val queues: List<AttentionQueueRef> = emptyList(),
 )
+
+@Serializable
+data class AttentionVerb(val id: String = "", val label: String = "", val description: String? = null)
+
+@Serializable
+data class AttentionDismissal(val kind: String = "dismiss", val dismissedAt: String? = null, val snoozedUntil: String? = null, val isActive: Boolean = false)
+
+@Serializable
+data class AttentionQueueRef(val key: String = "", val title: String = "")
+
+/** An agent-proposed choice (the Decisions desk). Effects run on the server when an option is chosen. */
+@Serializable
+data class Decision(
+    val id: String,
+    val title: String = "",
+    val body: String = "",
+    val options: List<DecisionOption> = emptyList(),
+    val inputs: List<DecisionInput>? = null,
+    val status: String = "open",
+    val executionStatus: String? = null,
+    val chosenOptionId: String? = null,
+    val decidedAt: String? = null,
+    val expiresAt: String? = null,
+    val originAgentId: String? = null,
+    val originIssueId: String? = null,
+    val originRunId: String? = null,
+    val targetSnapshots: Map<String, DecisionTargetSnapshot>? = null,
+    val targetChanged: Map<String, Boolean>? = null,
+    val executions: List<DecisionExecution>? = null,
+    val metadata: JsonObject? = null,
+    val createdAt: String? = null,
+)
+
+@Serializable
+data class DecisionOption(
+    val id: String,
+    val label: String = "",
+    val description: String? = null,
+    val style: String? = null,
+    val effects: List<JsonObject> = emptyList(),
+)
+
+@Serializable
+data class DecisionInput(val id: String, val label: String = "", val placeholder: String? = null, val required: Boolean = false, val maxLength: Int? = null)
+
+@Serializable
+data class DecisionTargetSnapshot(val status: String? = null, val descendantIds: List<String>? = null, val descendantCount: Int? = null)
+
+@Serializable
+data class DecisionExecution(val id: String = "", val effectType: String = "", val targetIssueId: String? = null, val status: String = "", val error: String? = null)
 
 @Serializable
 data class AttentionFeed(
@@ -449,7 +508,17 @@ data class Goal(
 data class RoutineLastRun(val id: String? = null, val status: String? = null, val createdAt: String? = null)
 
 @Serializable
-data class RoutineTrigger(val id: String = "", val kind: String = "", val label: String? = null, val enabled: Boolean = true, val cronExpression: String? = null, val nextRunAt: String? = null)
+data class RoutineTrigger(
+    val id: String = "",
+    val kind: String = "",
+    val label: String? = null,
+    val enabled: Boolean = true,
+    val cronExpression: String? = null,
+    val timezone: String? = null,
+    val nextRunAt: String? = null,
+    val lastFiredAt: String? = null,
+    val archived: Boolean = false,
+)
 
 @Serializable
 data class Routine(
@@ -462,6 +531,12 @@ data class Routine(
     val lastTriggeredAt: String? = null,
     val triggers: List<RoutineTrigger>? = null,
     val lastRun: RoutineLastRun? = null,
+    val priority: String = "medium",
+    val concurrencyPolicy: String = "coalesce_if_active",
+    val catchUpPolicy: String = "skip_missed",
+    val latestRevisionId: String? = null,
+    val variables: JsonArray? = null,
+    val managedByPlugin: JsonObject? = null,
 )
 
 @Serializable

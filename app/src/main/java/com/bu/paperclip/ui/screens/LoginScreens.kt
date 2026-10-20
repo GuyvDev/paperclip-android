@@ -1,5 +1,19 @@
 package com.bu.paperclip.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.ripple
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
+import com.bu.paperclip.ui.AppTabs
+import com.bu.paperclip.ui.LocalNav
+import com.bu.paperclip.ui.Routes
+import androidx.navigation.compose.currentBackStackEntryAsState
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.webkit.CookieManager
@@ -308,9 +322,43 @@ fun SplashScreen(message: String = "Connecting…", onRetry: (() -> Unit)? = nul
     }
 }
 
+/**
+ * Back arrow for pushed screens. Two or more screens deep, a second button returns straight to the
+ * tab the trail started from; long-pressing the arrow does the same.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BackIcon(onClick: () -> Unit) {
-    IconButton(onClick = onClick) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+    val nav = LocalNav.current
+    val controller = nav?.controller
+    // Recompose on every navigation; the back-stack list itself is library-internal API.
+    controller?.currentBackStackEntryAsState()?.value
+    // Two or more pushed screens: the one underneath isn't a tab either.
+    val deep = controller != null && controller.previousBackStackEntry?.destination?.route.let { it != null && it !in Routes.TABS }
+    // Switching tabs pops back to Home first, so at most one other tab sits under the pushed screens.
+    val origin = if (!deep) null else AppTabs.firstOrNull { t ->
+        t.route != Routes.DASHBOARD && runCatching { controller!!.getBackStackEntry(t.route) }.isSuccess
+    } ?: AppTabs.first()
+    val haptics = LocalHapticFeedback.current
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier.size(48.dp).combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = false, radius = 20.dp),
+                role = Role.Button,
+                onClickLabel = "Back",
+                onLongClickLabel = origin?.let { "Back to ${it.label}" },
+                onLongClick = if (deep) ({ haptics.performHapticFeedback(HapticFeedbackType.LongPress); nav!!.backToTab(origin!!.route) }) else null,
+                onClick = onClick,
+            ),
+            contentAlignment = Alignment.Center,
+        ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+        if (deep) {
+            IconButton(onClick = { nav!!.backToTab(origin!!.route) }, modifier = Modifier.offset(x = (-6).dp)) {
+                Icon(origin!!.icon, "Back to ${origin.label}", Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
 }
 
 private sealed class Gate {

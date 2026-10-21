@@ -93,4 +93,25 @@ class TaskEntryUiTest {
         restoration.emulateSavedInstanceStateRestore()
         assertEquals(top, compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot.top, 0f)
     }
+    @Test fun switchingCompanySeedsItsOwnTreeWhileBackgroundUpdatesWait() {
+        val pending = StandardTestDispatcher()
+        var company by mutableStateOf("first")
+        val first = mapOf("first" to Issue(id = "first", title = "First company task", status = "todo"))
+        val second = mapOf("second" to Issue(id = "second", title = "Second company task", status = "todo"))
+        compose.setContent {
+            PaperclipTheme {
+                val model = rememberTasksModel(company, if (company == "first") first else second,
+                    emptySet(), null, TaskFilter(), pending)
+                Box(Modifier.size(360.dp, 480.dp)) {
+                    TaskTreeView(model, Nav(rememberNavController()), null, {},
+                        remember(company) { mutableStateMapOf() }, dispatcher = pending, onLongPress = {})
+                }
+            }
+        }
+        compose.onAllNodes(hasText("First company task"))[0].assertIsDisplayed()
+        compose.runOnIdle { company = "second" }
+        compose.onAllNodes(hasText("Second company task"))[0].assertIsDisplayed()
+        compose.onNodeWithText("First company task").assertDoesNotExist()
+    }
+
 }

@@ -78,6 +78,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
@@ -147,7 +148,7 @@ import kotlinx.serialization.json.JsonObject
 private enum class TaskView(val key: String, val label: String) { List("list", "List"), Tree("tree", "Tree"), Board("board", "Board") }
 
 /** What every task view renders from: the mirror, the filter and the graph built over them. */
-internal class TasksModel(all: Collection<Issue>, val graph: TaskGraph, val filter: TaskFilter, val live: Set<String>) {
+internal class TasksModel(all: Collection<Issue>, val graph: TaskGraph, val filter: TaskFilter, val live: Set<String>, val companyId: String) {
     val matched: List<Issue> = all.filter { filter.matches(it, graph.ctx) }.sortedWith(filter.comparator())
     fun liveCopy(i: Issue): Issue = if (i.id in live && i.activeRun == null) i.copy(activeRun = ActiveRunRef(status = "running")) else i
     fun isBlocked(i: Issue): Boolean = !isClosed(i.status) && (i.status == "blocked" || i.openBlockers(graph.ctx).isNotEmpty())
@@ -172,11 +173,11 @@ internal fun rememberTasksModel(
         }
     }
     var model by remember(companyId) {
-        mutableStateOf(TasksModel(graph.byId.values, graph, filter, live))
+        mutableStateOf(TasksModel(graph.byId.values, graph, filter, live, companyId))
     }
     LaunchedEffect(companyId, graph, filter) {
         val sourceGraph = graph
-        model = withContext(dispatcher) { TasksModel(sourceGraph.byId.values, sourceGraph, filter, sourceGraph.ctx.live) }
+        model = withContext(dispatcher) { TasksModel(sourceGraph.byId.values, sourceGraph, filter, sourceGraph.ctx.live, companyId) }
     }
     return model
 }
@@ -200,8 +201,8 @@ fun IssuesScreen(nav: Nav) {
     var menu by remember { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
     var quickEdit by remember { mutableStateOf<Issue?>(null) }
-    var focusId by remember { mutableStateOf<String?>(null) }
     val cid = AppState.company.collectAsState().value?.id.orEmpty()
+    var focusId by remember(cid) { mutableStateOf<String?>(null) }
     // Explicit expand/collapse choices survive leaving the screen and restarts; ids of deleted tasks are pruned.
     val collapsed = rememberSavedFlags("tasks.collapsed.$cid") { id -> issues.isEmpty() || id in issues }
 
@@ -480,6 +481,21 @@ internal fun TaskTreeView(
     onFocus: (String?) -> Unit,
     collapsed: MutableMap<String, Boolean>,
     dispatcher: CoroutineDispatcher = Dispatchers.Default,
+    onLongPress: (Issue) -> Unit,
+) {
+    key(m.companyId) {
+        TaskTreeContent(m, nav, focusId, onFocus, collapsed, dispatcher, onLongPress)
+    }
+}
+
+@Composable
+private fun TaskTreeContent(
+    m: TasksModel,
+    nav: Nav,
+    focusId: String?,
+    onFocus: (String?) -> Unit,
+    collapsed: MutableMap<String, Boolean>,
+    dispatcher: CoroutineDispatcher,
     onLongPress: (Issue) -> Unit,
 ) {
     val focus = focusId?.let { m.graph.byId[it] }

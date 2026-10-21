@@ -62,6 +62,37 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+/** Main-thread-confined handoff from HTTP catch-up to live records, including suspending parsing. */
+internal class RunLogCatchUp(private val capacity: Int = 2048) {
+    private val pending = ArrayDeque<JsonObject>()
+    private var buffering = true
+    private var overflowed = false
+
+    /** True means buffered (or awaiting HTTP recovery); false means ready for direct live parsing. */
+    fun offer(record: JsonObject): Boolean {
+        if (!buffering) return false
+        // Once a gap exists, don't parse newer live records ahead of its HTTP recovery.
+        if (!overflowed) {
+            if (pending.size < capacity) pending.addLast(record) else overflowed = true
+        }
+        return true
+    }
+
+    suspend fun complete(replay: suspend (JsonObject) -> Unit, recover: suspend () -> Unit) {
+        while (true) {
+            // New arrivals stay queued while replay suspends; iterating a mutable list isn't safe.
+            while (pending.isNotEmpty()) replay(pending.removeFirst())
+            if (overflowed) {
+                overflowed = false
+                recover()
+            } else {
+                buffering = false
+                return
+            }
+        }
+    }
+}
+
 data class RunRawLine(val stream: String, val text: String)
 
 /**

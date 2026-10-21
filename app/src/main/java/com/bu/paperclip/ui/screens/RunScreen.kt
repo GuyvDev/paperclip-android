@@ -159,15 +159,10 @@ fun RunScreen(nav: Nav, id: String) {
         val r = run ?: return@LaunchedEffect
         if (theAgent == null && r.agentId.isNotEmpty()) return@LaunchedEffect
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            val buffered = ArrayList<JsonObject>()
-            var buffering = true
-            var bufferOverflow = false
+            val catchUp = RunLogCatchUp()
             val liveJob = launch {
                 LiveEvents.events.filter { it.type == "heartbeat.run.log" && it.s("runId") == id }.collect { e ->
-                    if (buffering) {
-                        if (buffered.size < 2048) buffered.add(e.payload) else bufferOverflow = true
-                    }
-                    else {
+                    if (!catchUp.offer(e.payload)) {
                         ts.feedLive(e.s("ts"), e.s("stream") ?: "stdout", e.s("chunk") ?: "", (e.payload["seq"] as? JsonPrimitive)?.longOrNull)
                     }
                 }
@@ -186,15 +181,12 @@ fun RunScreen(nav: Nav, id: String) {
             } catch (t: Throwable) {
                 logError = errorMessage(t)
             }
-            buffering = false
-            buffered.forEach { p ->
+            catchUp.complete(replay = { p ->
                 ts.feedLive(
                     (p["ts"] as? JsonPrimitive)?.contentOrNull, (p["stream"] as? JsonPrimitive)?.contentOrNull ?: "stdout",
                     (p["chunk"] as? JsonPrimitive)?.contentOrNull ?: "", (p["seq"] as? JsonPrimitive)?.longOrNull,
                 )
-            }
-            buffered.clear()
-            if (bufferOverflow) catching { pollOnce() }
+            }, recover = { catching { pollOnce() }; Unit })
             logLoaded = true
 
             // Fallback polling while the socket is down, plus a catch-up poll after reconnects.

@@ -1,5 +1,7 @@
 package com.bu.paperclip.ui.screens
 
+import com.bu.paperclip.util.catching
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -80,6 +82,9 @@ import com.bu.paperclip.util.durationLabel
 import com.bu.paperclip.util.relativeTime
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
@@ -99,6 +104,7 @@ private fun runIsTerminal(status: String) = status in setOf("succeeded", "failed
 @Composable
 fun RunScreen(nav: Nav, id: String) {
     val scope = rememberCoroutineScope()
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
     val act = rememberAction()
     val connected by LiveEvents.connected.collectAsState()
     var view by rememberSaveable { mutableStateOf(RunView.Transcript) }
@@ -111,13 +117,13 @@ fun RunScreen(nav: Nav, id: String) {
     var fetchedAgent by remember(id) { mutableStateOf<Agent?>(null) }
     LaunchedEffect(run?.agentId) {
         val aid = run?.agentId ?: return@LaunchedEffect
-        if (AppState.agent(aid) == null) fetchedAgent = runCatching { Repo.agent(aid) }.getOrNull()
+        if (AppState.agent(aid) == null) fetchedAgent = catching { Repo.agent(aid) }.getOrNull()
     }
     val theAgent = agent ?: fetchedAgent
     var issue by remember(id) { mutableStateOf<Issue?>(null) }
     LaunchedEffect(run?.issueId) {
         val iid = run?.issueId ?: return@LaunchedEffect
-        issue = runCatching { Repo.issue(iid) }.getOrNull()
+        issue = catching { Repo.issue(iid) }.getOrNull()
     }
 
     LiveRefresh(debounceMs = 300, filter = { (it.type == "heartbeat.run.status" || it.type == "heartbeat.run.queued") && it.s("runId") == id }) {
@@ -137,7 +143,7 @@ fun RunScreen(nav: Nav, id: String) {
         var guard = 0
         while (guard++ < 40) {
             val page = Repo.runLog(id, ts.offset, RUN_PAGE_BYTES)
-            if (page.content.isNotEmpty()) ts.feedContent(page.content)
+            if (page.content.isNotEmpty()) { ts.feedContent(page.content); logLoaded = true }
             val next = page.nextOffset
             if (next == null) {
                 ts.offset += page.content.toByteArray(Charsets.UTF_8).size
@@ -152,66 +158,76 @@ fun RunScreen(nav: Nav, id: String) {
     LaunchedEffect(ts, run != null && (theAgent != null || run.agentId.isEmpty())) {
         val r = run ?: return@LaunchedEffect
         if (theAgent == null && r.agentId.isNotEmpty()) return@LaunchedEffect
-        val buffered = ArrayList<JsonObject>()
-        var buffering = true
-        val liveJob = launch {
-            LiveEvents.events.filter { it.type == "heartbeat.run.log" && it.s("runId") == id }.collect { e ->
-                if (buffering) buffered.add(e.payload)
-                else {
-                    ts.feedLive(e.s("ts"), e.s("stream") ?: "stdout", e.s("chunk") ?: "", (e.payload["seq"] as? JsonPrimitive)?.longOrNull)
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            val buffered = ArrayList<JsonObject>()
+            var buffering = true
+            var bufferOverflow = false
+            val liveJob = launch {
+                LiveEvents.events.filter { it.type == "heartbeat.run.log" && it.s("runId") == id }.collect { e ->
+                    if (buffering) {
+                        if (buffered.size < 2048) buffered.add(e.payload) else bufferOverflow = true
+                    }
+                    else {
+                        ts.feedLive(e.s("ts"), e.s("stream") ?: "stdout", e.s("chunk") ?: "", (e.payload["seq"] as? JsonPrimitive)?.longOrNull)
+                    }
                 }
             }
-        }
-        try {
-            val end = r.lastOutputBytes ?: r.logBytes ?: 0L
-            ts.startOffset = if (fullLog) 0 else (end - RUN_TAIL_BYTES).coerceAtLeast(0)
-            ts.offset = ts.startOffset
-            pollOnce()
-            logError = null
-        } catch (c: CancellationException) {
-            throw c
-        } catch (t: Throwable) {
-            logError = errorMessage(t)
-        }
-        buffering = false
-        buffered.forEach { p ->
-            ts.feedLive(
-                (p["ts"] as? JsonPrimitive)?.contentOrNull, (p["stream"] as? JsonPrimitive)?.contentOrNull ?: "stdout",
-                (p["chunk"] as? JsonPrimitive)?.contentOrNull ?: "", (p["seq"] as? JsonPrimitive)?.longOrNull,
-            )
-        }
-        buffered.clear()
-        logLoaded = true
-        ts.dirty = true
-        // Fallback polling while the socket is down, plus a catch-up poll after reconnects.
-        var lastEpoch = LiveEvents.epoch.value
-        try {
-            while (true) {
-                delay(2000)
-                val current = runLoader.value
-                val stillLive = current != null && !runIsTerminal(current.status)
-                val reconnected = LiveEvents.epoch.value != lastEpoch
-                lastEpoch = LiveEvents.epoch.value
-                if (stillLive && (!LiveEvents.connected.value || reconnected)) runCatching { pollOnce() }
-                if (!stillLive) {
-                    runCatching { pollOnce() }
-                    break
+            try {
+                val end = r.lastOutputBytes ?: r.logBytes ?: 0L
+                if (!ts.loaded) {
+                    ts.startOffset = if (fullLog) 0 else (end - RUN_TAIL_BYTES).coerceAtLeast(0)
+                    ts.offset = ts.startOffset
                 }
+                pollOnce()
+                ts.loaded = true
+                logError = null
+            } catch (c: CancellationException) {
+                throw c
+            } catch (t: Throwable) {
+                logError = errorMessage(t)
             }
-        } finally {
-            liveJob.cancel()
+            buffering = false
+            buffered.forEach { p ->
+                ts.feedLive(
+                    (p["ts"] as? JsonPrimitive)?.contentOrNull, (p["stream"] as? JsonPrimitive)?.contentOrNull ?: "stdout",
+                    (p["chunk"] as? JsonPrimitive)?.contentOrNull ?: "", (p["seq"] as? JsonPrimitive)?.longOrNull,
+                )
+            }
+            buffered.clear()
+            if (bufferOverflow) catching { pollOnce() }
+            logLoaded = true
+
+            // Fallback polling while the socket is down, plus a catch-up poll after reconnects.
+            var lastEpoch = LiveEvents.epoch.value
+            try {
+                while (true) {
+                    delay(2000)
+                    val current = runLoader.value
+                    val stillLive = current != null && !runIsTerminal(current.status)
+                    val reconnected = LiveEvents.epoch.value != lastEpoch
+                    lastEpoch = LiveEvents.epoch.value
+                    if (stillLive && (!LiveEvents.connected.value || reconnected)) catching { pollOnce() }
+                    if (!stillLive) {
+                        catching { pollOnce() }
+                        break
+                    }
+                }
+            } finally {
+                liveJob.cancel()
+            }
         }
     }
 
     // Throttled publication of the builder's entries into Compose state.
-    LaunchedEffect(ts) {
-        while (true) {
-            if (ts.dirty) {
-                ts.dirty = false
-                entries = ts.builder.entries.toList()
-                rawLines = ts.raw.toList()
+    LaunchedEffect(ts, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                ts.snapshot()?.let { (transcript, raw) ->
+                    entries = transcript
+                    rawLines = raw
+                }
+                delay(250)
             }
-            delay(250)
         }
     }
 
@@ -241,9 +257,6 @@ fun RunScreen(nav: Nav, id: String) {
         }
     }
 
-    // Ticking duration while live.
-    var tick by remember { mutableIntStateOf(0) }
-    LaunchedEffect(live) { while (live) { delay(1000); tick++ } }
 
     Scaffold(
         topBar = {
@@ -274,12 +287,9 @@ fun RunScreen(nav: Nav, id: String) {
         },
     ) { pad ->
         LoadContent(runLoader, Modifier.padding(pad)) { r ->
-            val elapsed = remember(tick, r.status, r.startedAt, r.finishedAt) {
-                durationLabel(r.startedAt ?: r.createdAt, if (runIsTerminal(r.status)) r.finishedAt else null)
-            }
             LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 96.dp)) {
                 item(key = "header") {
-                    RunHeader(r, elapsed, theAgent, issue, nav, onRetry = {
+                    RunHeader(r, theAgent, issue, nav, onRetry = {
                         act({
                             val res = Repo.wake(r.agentId, reason = "retry_failed_run", failedRunId = r.id)
                             val o = res as? JsonObject
@@ -287,7 +297,7 @@ fun RunScreen(nav: Nav, id: String) {
                                 ?: (o?.get("runId") as? JsonPrimitive)?.contentOrNull
                             val skipped = (o?.get("status") as? JsonPrimitive)?.contentOrNull == "skipped"
                             if (newId != null && !skipped) nav.run(newId)
-                            else com.bu.paperclip.data.AppState.toast(
+                            else AppState.toast(
                                 (o?.get("message") as? JsonPrimitive)?.contentOrNull ?: "Retry requested",
                             )
                         }, null)
@@ -319,6 +329,12 @@ fun RunScreen(nav: Nav, id: String) {
                             )
                             TextButton(onClick = { fullLog = true; follow = false }) { Text("Load full log") }
                         }
+                    }
+                }
+                if (ts.trimmed && view != RunView.Events) {
+                    item(key = "retention") {
+                        Text("Showing recent output to keep scrolling responsive. Earlier output remains in the server log.",
+                            style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(16.dp))
                     }
                 }
                 if (logError != null && view != RunView.Events) {
@@ -386,7 +402,17 @@ private fun RunLiveTail(r: HeartbeatRun) {
 }
 
 @Composable
-private fun RunHeader(r: HeartbeatRun, elapsed: String, agent: Agent?, issue: Issue?, nav: Nav, onRetry: () -> Unit) {
+private fun RunHeader(r: HeartbeatRun, agent: Agent?, issue: Issue?, nav: Nav, onRetry: () -> Unit) {
+    var tick by remember { mutableIntStateOf(0) }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(r.status, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (!runIsTerminal(r.status)) { delay(1000); tick++ }
+        }
+    }
+    val elapsed = remember(tick, r.status, r.startedAt, r.finishedAt) {
+        durationLabel(r.startedAt ?: r.createdAt, if (runIsTerminal(r.status)) r.finishedAt else null)
+    }
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Row(
             Modifier.fillMaxWidth().clickable(enabled = agent != null) { agent?.let { nav.agent(it.id) } },

@@ -35,8 +35,17 @@ class TranscriptBuilder(private val adapterType: String?) {
     val entries = ArrayList<TEntry>()
     private val toolIndex = HashMap<String, TEntry.ToolCall>()
     private val stdoutBuf = StringBuilder()
-    private val seenSeq = HashSet<Long>()
+    private val seenSeq = LinkedHashSet<Long>()
     private var partialRecord = ""
+
+    /** Bound retained rendering history; the original log remains available on the server. */
+    fun trim(maxEntries: Int): Boolean {
+        if (entries.size <= maxEntries) return false
+        entries.subList(0, entries.size - maxEntries).clear()
+        val retainedTools = entries.filterIsInstance<TEntry.ToolCall>().mapNotNull { it.id }.toHashSet()
+        toolIndex.keys.retainAll(retainedTools)
+        return true
+    }
 
     /** Feed raw `content` from the /log endpoint (may end mid-line). */
     fun feedLogContent(content: String) {
@@ -54,6 +63,7 @@ class TranscriptBuilder(private val adapterType: String?) {
 
     fun feedRecord(ts: String?, stream: String, chunk: String, seq: Long?) {
         if (seq != null && !seenSeq.add(seq)) return
+        while (seenSeq.size > 20_000) seenSeq.iterator().let { it.next(); it.remove() }
         when (stream) {
             "stdout" -> {
                 stdoutBuf.append(chunk)

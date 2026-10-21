@@ -1,5 +1,7 @@
 package com.bu.paperclip.ui.screens
 
+import com.bu.paperclip.util.catching
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -134,16 +136,49 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.derivedStateOf
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 
 private enum class TaskView(val key: String, val label: String) { List("list", "List"), Tree("tree", "Tree"), Board("board", "Board") }
 
 /** What every task view renders from: the mirror, the filter and the graph built over them. */
-private class TasksModel(all: Collection<Issue>, val graph: TaskGraph, val filter: TaskFilter, val live: Set<String>) {
+internal class TasksModel(all: Collection<Issue>, val graph: TaskGraph, val filter: TaskFilter, val live: Set<String>) {
     val matched: List<Issue> = all.filter { filter.matches(it, graph.ctx) }.sortedWith(filter.comparator())
     fun liveCopy(i: Issue): Issue = if (i.id in live && i.activeRun == null) i.copy(activeRun = ActiveRunRef(status = "running")) else i
     fun isBlocked(i: Issue): Boolean = !isClosed(i.status) && (i.status == "blocked" || i.openBlockers(graph.ctx).isNotEmpty())
+}
+
+/** Seed from the populated mirror on entry; keep the previous result during background updates. */
+@Composable
+internal fun rememberTasksModel(
+    companyId: String,
+    issues: Map<String, Issue>,
+    live: Set<String>,
+    meId: String?,
+    filter: TaskFilter,
+    dispatcher: CoroutineDispatcher = Dispatchers.Default,
+): TasksModel {
+    var graph by remember(companyId) {
+        mutableStateOf(TaskGraph(issues.values, MatchCtx(meId, live) { issues[it]?.status }))
+    }
+    LaunchedEffect(companyId, issues, live, meId) {
+        graph = withContext(dispatcher) {
+            TaskGraph(issues.values, MatchCtx(meId, live) { issues[it]?.status })
+        }
+    }
+    var model by remember(companyId) {
+        mutableStateOf(TasksModel(graph.byId.values, graph, filter, live))
+    }
+    LaunchedEffect(companyId, graph, filter) {
+        val sourceGraph = graph
+        model = withContext(dispatcher) { TasksModel(sourceGraph.byId.values, sourceGraph, filter, sourceGraph.ctx.live) }
+    }
+    return model
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -172,14 +207,14 @@ fun IssuesScreen(nav: Nav) {
 
     LaunchedEffect(Unit) {
         AppState.settings.getString("tasks.view")?.let { k -> TaskView.entries.firstOrNull { it.key == k }?.let { view = it } }
-        AppState.settings.getString("tasks.filter")?.let { s -> runCatching { filter = AppJson.decodeFromString(TaskFilter.serializer(), s) } }
+        AppState.settings.getString("tasks.filter")?.let { s -> catching { filter = AppJson.decodeFromString(TaskFilter.serializer(), s) } }
         prefsLoaded = true
     }
     LaunchedEffect(view, prefsLoaded) { if (prefsLoaded) AppState.settings.setString("tasks.view", view.key) }
     LaunchedEffect(filter, prefsLoaded) { if (prefsLoaded) AppState.settings.setString("tasks.filter", AppJson.encodeToString(TaskFilter.serializer(), filter)) }
 
-    val graph = remember(issues, live, me) { TaskGraph(issues.values, MatchCtx(me?.id, live) { id -> issues[id]?.status }) }
-    val model = remember(graph, filter) { TasksModel(issues.values, graph, filter, live) }
+    val model = rememberTasksModel(cid, issues, live, me?.id, filter)
+    val graph = model.graph
 
     fun patch(original: Issue, optimistic: Issue, body: JsonObject) {
         IssueStore.upsert(optimistic)
@@ -258,6 +293,7 @@ fun IssuesScreen(nav: Nav) {
             val st = status
             when {
                 issues.isEmpty() && st is IssueStore.Status.Error -> ErrorState(st.message) { scope.launch { IssueStore.refresh(full = true) } }
+                issues.isEmpty() && st is IssueStore.Status.Ready -> EmptyState("No tasks yet")
                 issues.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 else -> PullToRefreshBox(
                     isRefreshing = refreshing,
@@ -361,7 +397,7 @@ private fun rememberSavedFlags(prefKey: String, keep: (String) -> Boolean = { tr
     LaunchedEffect(prefKey) {
         val ser = MapSerializer(String.serializer(), Boolean.serializer())
         AppState.settings.getString(prefKey)?.let { saved ->
-            runCatching { AppJson.decodeFromString(ser, saved) }.getOrNull()?.forEach { (k, v) -> if (k !in map) map[k] = v }
+            catching { AppJson.decodeFromString(ser, saved) }.getOrNull()?.forEach { (k, v) -> if (k !in map) map[k] = v }
         }
         snapshotFlow { map.toMap() }.drop(1).debounce(400).collect { now ->
             val pruned = now.filterKeys { keepNow(it) }.entries.toList().takeLast(2000).associate { it.key to it.value }
@@ -437,28 +473,49 @@ private fun TaskListView(m: TasksModel, nav: Nav, onLongPress: (Issue) -> Unit) 
 // ---------------- tree ----------------
 
 @Composable
-private fun TaskTreeView(
+internal fun TaskTreeView(
     m: TasksModel,
     nav: Nav,
     focusId: String?,
     onFocus: (String?) -> Unit,
     collapsed: MutableMap<String, Boolean>,
+    dispatcher: CoroutineDispatcher = Dispatchers.Default,
     onLongPress: (Issue) -> Unit,
 ) {
     val focus = focusId?.let { m.graph.byId[it] }
-    val forest = remember(m, focusId) { m.graph.forest(m.filter, focusId) }
-    val nextAll = remember(m, focusId) { m.graph.nextUp(focusId, 200, m.filter) }
+    var forest by remember { mutableStateOf(m.graph.forest(m.filter, focusId)) }
+    LaunchedEffect(m, focusId) {
+        forest = withContext(dispatcher) { m.graph.forest(m.filter, focusId) }
+    }
+    var nextAll by remember { mutableStateOf(m.graph.nextUp(focusId, 200, m.filter)) }
+    LaunchedEffect(m, focusId) {
+        nextAll = withContext(dispatcher) { m.graph.nextUp(focusId, 200, m.filter) }
+    }
     val nextIds = remember(nextAll) { nextAll.mapTo(HashSet()) { it.issue.id } }
-    val inFlight = remember(m, focusId) {
-        val f = m.filter.copy(statuses = emptySet(), liveOnly = false, blockedOnly = false)
-        m.graph.inFlight(focusId).filter { f.matches(it, m.graph.ctx) }
+    var inFlight by remember {
+        val initialFilter = m.filter.copy(statuses = emptySet(), liveOnly = false, blockedOnly = false)
+        mutableStateOf(m.graph.inFlight(focusId).filter { initialFilter.matches(it, m.graph.ctx) })
+    }
+    LaunchedEffect(m, focusId) {
+        inFlight = withContext(dispatcher) {
+            val f = m.filter.copy(statuses = emptySet(), liveOnly = false, blockedOnly = false)
+            m.graph.inFlight(focusId).filter { f.matches(it, m.graph.ctx) }
+        }
     }
     fun isCollapsed(n: TaskNode) = collapsed[n.issue.id] ?: (n.children.isNotEmpty() && n.rollup.open == 0 && n.matched)
-    val flat = flattenTree(forest, forest.flatMap { taskAllNodes(it) }.filter { isCollapsed(it) }.mapTo(HashSet()) { it.issue.id })
+    val flat by remember(forest, collapsed) { derivedStateOf {
+        flattenTree(forest, forest.flatMap { taskAllNodes(it) }.filter { isCollapsed(it) }.mapTo(HashSet()) { it.issue.id })
+    } }
 
     BackHandler(enabled = focus != null) { onFocus(focus?.parentId?.takeIf { m.graph.byId.containsKey(it) }) }
     val listState = rememberLazyListState()
-    LaunchedEffect(focusId) { listState.scrollToItem(0) }
+    var previousFocus by rememberSaveable { mutableStateOf(focusId) }
+    LaunchedEffect(focusId) {
+        if (previousFocus != focusId) {
+            listState.scrollToItem(0)
+            previousFocus = focusId
+        }
+    }
 
     LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 96.dp)) {
         if (focus != null) {
@@ -688,7 +745,7 @@ private fun TaskFilterSheet(f: TaskFilter, onChange: (TaskFilter) -> Unit, onDis
     val agents by AppState.agents.collectAsState()
     val projects by AppState.projects.collectAsState()
     var labels by remember { mutableStateOf<List<Label>>(emptyList()) }
-    LaunchedEffect(Unit) { labels = runCatching { Repo.labels(AppState.cid) }.getOrDefault(emptyList()) }
+    LaunchedEffect(Unit) { labels = catching { Repo.labels(AppState.cid) }.getOrDefault(emptyList()) }
     fun <T> Set<T>.toggle(v: T) = if (v in this) this - v else this + v
 
     ModalBottomSheet(onDismissRequest = onDismiss, modifier = Modifier.statusBarsPadding().padding(top = 12.dp), sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {

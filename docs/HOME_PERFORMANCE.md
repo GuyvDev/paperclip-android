@@ -5,3 +5,5 @@
 Run `./gradlew :app:testDebugUnitTest` with a complete JDK 17+ and Android SDK. Robolectric tests verify storage and Compose behavior, not physical-device frame rates.
 
 The production Home feed test uses 200 synthetic activities, scrolls in both directions and verifies the same event stays at the same pixel offset when new activity, live runs and the paused banner change. It also verifies chart selection/data/empty states.
+
+Mixed activity/search, cost, decision, inbox and project lists also declare layout-specific row content types, allowing Compose to reuse matching compositions without recycling unrelated headers/cards into rows. Avatar initials are remembered by name rather than rebuilt on each row update.

@@ -447,7 +447,7 @@ private fun TaskListView(m: TasksModel, nav: Nav, onLongPress: (Issue) -> Unit) 
         if (m.matched.isEmpty()) item { EmptyState("No tasks match these filters") }
         groups.forEach { g ->
             val isCollapsed = collapsedGroups[g.key] == true
-            if (g.label.isNotEmpty()) stickyHeader(key = "h-${g.key}") {
+            if (g.label.isNotEmpty()) stickyHeader(key = "h-${g.key}", contentType = "group-header") {
                 Row(
                     Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
                         .clickable { collapsedGroups[g.key] = !isCollapsed }
@@ -463,7 +463,7 @@ private fun TaskListView(m: TasksModel, nav: Nav, onLongPress: (Issue) -> Unit) 
                     Text("${g.items.size}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            if (!isCollapsed) items(g.items, key = { "${g.key}-${it.id}" }) { i ->
+            if (!isCollapsed) items(g.items, key = { "${g.key}-${it.id}" }, contentType = { "task" }) { i ->
                 IssueRow(m.liveCopy(i), onClick = { nav.issue(i.identifier ?: i.id) }, onLongClick = { onLongPress(i) })
                 Divider()
             }
@@ -535,8 +535,8 @@ private fun TaskTreeContent(
 
     LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 96.dp)) {
         if (focus != null) {
-            item(key = "crumbs") { TaskBreadcrumbs(m.graph.ancestors(focus), focus, onFocus) }
-            item(key = "focus") {
+            item(key = "crumbs", contentType = "crumbs") { TaskBreadcrumbs(m.graph.ancestors(focus), focus, onFocus) }
+            item(key = "focus", contentType = "focus") {
                 Surface(
                     Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).clip(RoundedCornerShape(14.dp))
                         .clickable { nav.issue(focus.identifier ?: focus.id) },
@@ -559,7 +559,7 @@ private fun TaskTreeContent(
                 }
             }
         }
-        item(key = "next") {
+        item(key = "next", contentType = "next") {
             NextUpCard(
                 nextAll.take(3), inFlight,
                 onOpen = { nav.issue(it.identifier ?: it.id) },
@@ -568,7 +568,7 @@ private fun TaskTreeContent(
             )
         }
         if (flat.isEmpty()) item { EmptyState(if (focus != null) "No sub-tasks match these filters" else "No tasks match these filters") }
-        items(flat, key = { "t-" + it.issue.id }) { n ->
+        items(flat, key = { "t-" + it.issue.id }, contentType = { "task-tree" }) { n ->
             TaskTreeRow(
                 node = n,
                 expanded = !isCollapsed(n),

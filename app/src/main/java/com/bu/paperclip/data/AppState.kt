@@ -33,7 +33,9 @@ object AppState {
 
     val cid: String get() = company.value?.id ?: ""
 
-    fun agent(id: String?): Agent? = id?.let { i -> agents.value.firstOrNull { it.id == i } }
+    private val agentIndex = LookupIndex<Agent> { it.id }
+    private val projectIndex = LookupIndex<Project> { it.id }
+    fun agent(id: String?): Agent? = agentIndex.get(agents.value, id)
     fun agentName(id: String?): String = agent(id)?.name ?: "Agent"
     fun userName(id: String?): String {
         if (id == null) return "Someone"
@@ -41,7 +43,7 @@ object AppState {
         val u = users.value[id]
         return u?.name?.takeIf { it.isNotBlank() } ?: u?.email ?: "User"
     }
-    fun project(id: String?): Project? = id?.let { i -> projects.value.firstOrNull { it.id == i } }
+    fun project(id: String?): Project? = projectIndex.get(projects.value, id)
 
     suspend fun loadSession() {
         me.value = catching { Repo.session().user }.getOrNull()

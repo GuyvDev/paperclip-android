@@ -443,7 +443,7 @@ fun IssueDetailScreen(nav: Nav, id: String) {
                 modifier = Modifier.fillMaxSize().padding(pad),
             ) {
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                    item(key = "header") {
+                    item(key = "header", contentType = "header") {
                         IssueHeader(
                             issue = i,
                             cost = cost,
@@ -453,7 +453,7 @@ fun IssueDetailScreen(nav: Nav, id: String) {
                             onSheet = { sheet = it },
                         )
                     }
-                    if (activeLive.isNotEmpty() || runLive) item(key = "live") {
+                    if (activeLive.isNotEmpty() || runLive) item(key = "live", contentType = "live") {
                         IssueLiveBanner(
                             runs = activeLive,
                             fallbackRunId = i.activeRun?.id,
@@ -463,7 +463,7 @@ fun IssueDetailScreen(nav: Nav, id: String) {
                             onStop = { runId -> safe { Repo.cancelRun(runId); AppState.toast("Stopping run"); loadLiveRuns() } },
                         )
                     }
-                    stickyHeader(key = "tabs") {
+                    stickyHeader(key = "tabs", contentType = "tabs") {
                         Surface(color = MaterialTheme.colorScheme.background) {
                             Column {
                                 ScrollableTabRow(selectedTabIndex = tab, edgePadding = 8.dp, containerColor = MaterialTheme.colorScheme.background) {
@@ -483,7 +483,7 @@ fun IssueDetailScreen(nav: Nav, id: String) {
                     when (tab) {
                         0 -> {
                             val pending = interactions.filter { it.status == "pending" }.sortedBy { it.createdAt ?: "" }
-                            items(pending, key = { "p-" + it.id }) { inter ->
+                            items(pending, key = { "p-" + it.id }, contentType = { "interaction" }) { inter ->
                                 IssueInteractionCard(
                                     issueId = i.id,
                                     interaction = inter,
@@ -496,7 +496,7 @@ fun IssueDetailScreen(nav: Nav, id: String) {
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                 )
                         }
-                            if (hasOlder) item(key = "older") {
+                            if (hasOlder) item(key = "older", contentType = "older") {
                                 IssueLoadOlderButton(loadingOlder) {
                                     loadingOlder = true
                                     scope.launch {
@@ -516,7 +516,7 @@ fun IssueDetailScreen(nav: Nav, id: String) {
                             }.sortedBy { it.at }
                             if (!commentsLoaded) item { IssueTabLoading() }
                             else if (timeline.isEmpty()) item { EmptyState("No comments yet. Say something to the assignee below.") }
-                            items(timeline, key = { it.key }) { entry ->
+                            items(timeline, key = { it.key }, contentType = { it::class }) { entry ->
                                 when (entry) {
                                     is IssueThreadEntry.C -> {
                                         val c = entry.c

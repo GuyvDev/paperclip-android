@@ -12,3 +12,7 @@
 Run `./gradlew :app:testDebugUnitTest` with a complete JDK 17+ and Android SDK. Robolectric tests verify storage and Compose behavior, not physical-device frame rates.
 
 Regression tests cover stale responses followed by successful refreshes without restarting the lifecycle, actual cancellation propagation, cache size migration and byte eviction, oversized responses bypassing persistence, healthy sockets surviving network callbacks, and draining more than 1,000 task changes. The task mirror stays in this PR because its session, cache and lifecycle ownership are integrated with app bootstrap; task graph and UI work is separate.
+
+Agent and project lookups index each immutable directory snapshot once instead of scanning the full directory for every visible row. Refreshing or clearing the snapshot replaces the index. A regression test verifies one directory pass across 1,000 row lookups and checks rename, deletion and company-clear behavior.
+
+The issue screen’s header, pending interactions and comment/interaction timeline have separate lazy-list content types. This screen change stays with its loader/lifecycle fixes so the independent transcript contribution merges without overlapping edits.

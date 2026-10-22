@@ -33,6 +33,8 @@ private val prettyJson = kotlinx.serialization.json.Json { prettyPrint = true }
 /** Incrementally turns run log records (NDJSON {ts,stream,chunk,seq}) into transcript entries. */
 class TranscriptBuilder(private val adapterType: String?) {
     val entries = ArrayList<TEntry>()
+    var droppedEntries = 0L
+        private set
     private val toolIndex = HashMap<String, TEntry.ToolCall>()
     private val stdoutBuf = StringBuilder()
     private val seenSeq = LinkedHashSet<Long>()
@@ -41,7 +43,9 @@ class TranscriptBuilder(private val adapterType: String?) {
     /** Bound retained rendering history; the original log remains available on the server. */
     fun trim(maxEntries: Int): Boolean {
         if (entries.size <= maxEntries) return false
-        entries.subList(0, entries.size - maxEntries).clear()
+        val removed = entries.size - maxEntries
+        entries.subList(0, removed).clear()
+        droppedEntries += removed
         val retainedTools = entries.filterIsInstance<TEntry.ToolCall>().mapNotNull { it.id }.toHashSet()
         toolIndex.keys.retainAll(retainedTools)
         return true

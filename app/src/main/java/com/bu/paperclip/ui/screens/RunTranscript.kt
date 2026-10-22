@@ -95,6 +95,13 @@ internal class RunLogCatchUp(private val capacity: Int = 2048) {
 
 data class RunRawLine(val stream: String, val text: String)
 
+data class RunTranscriptSnapshot(
+    val entries: List<TEntry>,
+    val rawLines: List<RunRawLine>,
+    val entryStart: Long,
+    val rawStart: Long,
+)
+
 /**
  * Accumulates a run's log from the paged /log endpoint and live WebSocket chunks.
  * Parsing and snapshots run off Main, serialized by a mutex. Offsets belong to the fetching coroutine.
@@ -103,6 +110,7 @@ class RunTranscriptState(adapterType: String?) {
     private val mutex = Mutex()
     private val builder = TranscriptBuilder(adapterType)
     private val raw = ArrayList<RunRawLine>()
+    private var droppedRaw = 0L
     private val rawSeqs = LinkedHashSet<Long>()
     private var partial = ""
     var offset: Long = 0
@@ -127,7 +135,7 @@ class RunTranscriptState(adapterType: String?) {
         }
         while (rawSeqs.size > 20_000) rawSeqs.iterator().let { it.next(); it.remove() }
         if (builder.trim(5000)) trimmed = true
-        if (raw.size > 5000) { raw.subList(0, raw.size - 5000).clear(); trimmed = true }
+        trimRaw()
         dirty = true
     } }
 
@@ -136,14 +144,23 @@ class RunTranscriptState(adapterType: String?) {
         if (seq == null || rawSeqs.add(seq)) raw.add(RunRawLine(stream, chunk))
         while (rawSeqs.size > 20_000) rawSeqs.iterator().let { it.next(); it.remove() }
         if (builder.trim(5000)) trimmed = true
-        if (raw.size > 5000) { raw.subList(0, raw.size - 5000).clear(); trimmed = true }
+        trimRaw()
         dirty = true
     } }
-    suspend fun snapshot(): Pair<List<TEntry>, List<RunRawLine>>? = withContext(Dispatchers.Default) {
+    private fun trimRaw() {
+        if (raw.size > 5000) {
+            val removed = raw.size - 5000
+            raw.subList(0, removed).clear()
+            droppedRaw += removed
+            trimmed = true
+        }
+    }
+
+    suspend fun snapshot(): RunTranscriptSnapshot? = withContext(Dispatchers.Default) {
         mutex.withLock {
             if (!dirty) null else {
                 dirty = false
-                builder.entries.toList() to raw.toList()
+                RunTranscriptSnapshot(builder.entries.toList(), raw.toList(), builder.droppedEntries, droppedRaw)
             }
         }
     }

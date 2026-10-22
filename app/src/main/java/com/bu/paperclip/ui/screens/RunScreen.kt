@@ -38,6 +38,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -135,6 +136,9 @@ fun RunScreen(nav: Nav, id: String) {
     val ts = remember(id, adapterType, fullLog) { RunTranscriptState(adapterType) }
     var entries by remember(ts) { mutableStateOf<List<TEntry>>(emptyList()) }
     var rawLines by remember(ts) { mutableStateOf<List<RunRawLine>>(emptyList()) }
+    var entryStart by remember(ts) { mutableLongStateOf(0L) }
+    var rawStart by remember(ts) { mutableLongStateOf(0L) }
+    val listState = rememberLazyListState()
     var logError by remember(ts) { mutableStateOf<String?>(null) }
     var logLoaded by remember(ts) { mutableStateOf(false) }
     val live = run?.let { !runIsTerminal(it.status) } ?: false
@@ -210,13 +214,18 @@ fun RunScreen(nav: Nav, id: String) {
         }
     }
 
-    // Throttled publication of the builder's entries into Compose state.
+    // Keep the visible list steady during a gesture. Parsing continues into the bounded builder;
+    // publish its latest snapshot once scrolling settles, rather than rebuild rows mid-fling.
     LaunchedEffect(ts, lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (true) {
-                ts.snapshot()?.let { (transcript, raw) ->
-                    entries = transcript
-                    rawLines = raw
+                if (!listState.isScrollInProgress) {
+                    ts.snapshot()?.let { snapshot ->
+                        entries = snapshot.entries
+                        rawLines = snapshot.rawLines
+                        entryStart = snapshot.entryStart
+                        rawStart = snapshot.rawStart
+                    }
                 }
                 delay(250)
             }
@@ -227,7 +236,6 @@ fun RunScreen(nav: Nav, id: String) {
         if (view == RunView.Events) Repo.runEvents(id, 0, 500) else emptyList()
     }
 
-    val listState = rememberLazyListState()
     var follow by remember(id) { mutableStateOf(true) }
     val atBottom by remember {
         derivedStateOf {
@@ -238,12 +246,13 @@ fun RunScreen(nav: Nav, id: String) {
     }
     LaunchedEffect(listState) {
         snapshotFlow { listState.isScrollInProgress }.distinctUntilChanged().collect { scrolling ->
-            if (!scrolling) follow = atBottom
+            // Disable follow as soon as a gesture starts, so incoming output cannot cancel it.
+            follow = !scrolling && atBottom
         }
     }
     val itemCount = when (view) { RunView.Transcript -> entries.size; RunView.Raw -> rawLines.size; RunView.Events -> events.value?.size ?: 0 }
     LaunchedEffect(itemCount, view, logLoaded) {
-        if (logLoaded && follow && itemCount > 0) {
+        if (logLoaded && follow && !listState.isScrollInProgress && itemCount > 0) {
             val total = listState.layoutInfo.totalItemsCount
             if (total > 0) listState.scrollToItem(total - 1)
         }
@@ -280,7 +289,7 @@ fun RunScreen(nav: Nav, id: String) {
     ) { pad ->
         LoadContent(runLoader, Modifier.padding(pad)) { r ->
             LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 96.dp)) {
-                item(key = "header") {
+                item(key = "header", contentType = "header") {
                     RunHeader(r, theAgent, issue, nav, onRetry = {
                         act({
                             val res = Repo.wake(r.agentId, reason = "retry_failed_run", failedRunId = r.id)
@@ -295,7 +304,7 @@ fun RunScreen(nav: Nav, id: String) {
                         }, null)
                     })
                 }
-                item(key = "views") {
+                item(key = "views", contentType = "views") {
                     Row(
                         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -311,7 +320,7 @@ fun RunScreen(nav: Nav, id: String) {
                     }
                 }
                 if (view != RunView.Events && logLoaded && ts.startOffset > 0) {
-                    item(key = "truncated") {
+                    item(key = "truncated", contentType = "truncated") {
                         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 "Showing the last ${RUN_TAIL_BYTES / 1000} KB of output",
@@ -324,33 +333,33 @@ fun RunScreen(nav: Nav, id: String) {
                     }
                 }
                 if (ts.trimmed && view != RunView.Events) {
-                    item(key = "retention") {
+                    item(key = "retention", contentType = "retention") {
                         Text("Showing recent output to keep scrolling responsive. Earlier output remains in the server log.",
                             style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(16.dp))
                     }
                 }
                 if (logError != null && view != RunView.Events) {
-                    item(key = "logerr") {
+                    item(key = "logerr", contentType = "logerr") {
                         Text(logError!!, color = LocalStatusColors.current.red, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(16.dp))
                     }
                 }
                 when (view) {
                     RunView.Transcript -> {
-                        if (!logLoaded) item(key = "loading") { RunLoadingRow() }
-                        else if (entries.isEmpty()) item(key = "empty") { EmptyState(if (live) "Waiting for output…" else "No output was recorded for this run") }
-                        itemsIndexed(entries, key = { i, _ -> "e$i" }) { _, e -> RunEntryView(e) }
-                        if (live && logLoaded) item(key = "live-tail") { RunLiveTail(r) }
+                        if (!logLoaded) item(key = "loading", contentType = "loading") { RunLoadingRow() }
+                        else if (entries.isEmpty()) item(key = "empty", contentType = "empty") { EmptyState(if (live) "Waiting for output…" else "No output was recorded for this run") }
+                        itemsIndexed(entries, key = { i, _ -> "e${entryStart + i}" }, contentType = { _, e -> e::class }) { _, e -> RunEntryView(e) }
+                        if (live && logLoaded) item(key = "live-tail", contentType = "live-tail") { RunLiveTail(r) }
                     }
                     RunView.Raw -> {
-                        if (!logLoaded) item(key = "loading") { RunLoadingRow() }
-                        else if (rawLines.isEmpty()) item(key = "empty") { EmptyState("No raw output") }
-                        itemsIndexed(rawLines, key = { i, _ -> "r$i" }) { _, l -> RunLogLine(l.stream, l.text) }
+                        if (!logLoaded) item(key = "loading", contentType = "loading") { RunLoadingRow() }
+                        else if (rawLines.isEmpty()) item(key = "empty", contentType = "empty") { EmptyState("No raw output") }
+                        itemsIndexed(rawLines, key = { i, _ -> "r${rawStart + i}" }, contentType = { _, _ -> "raw" }) { _, l -> RunLogLine(l.stream, l.text) }
                     }
                     RunView.Events -> {
                         val list = events.value
-                        if (list == null) item(key = "loading") { RunLoadingRow() }
-                        else if (list.isEmpty()) item(key = "empty") { EmptyState("No events recorded") }
-                        else itemsIndexed(list, key = { _, ev -> "ev${ev.seq}" }) { _, ev -> RunEventRow(ev) }
+                        if (list == null) item(key = "loading", contentType = "loading") { RunLoadingRow() }
+                        else if (list.isEmpty()) item(key = "empty", contentType = "empty") { EmptyState("No events recorded") }
+                        else itemsIndexed(list, key = { _, ev -> "ev${ev.seq}" }, contentType = { _, _ -> "event" }) { _, ev -> RunEventRow(ev) }
                     }
                 }
             }

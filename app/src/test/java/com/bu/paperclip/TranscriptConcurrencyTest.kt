@@ -16,10 +16,21 @@ class TranscriptConcurrencyTest {
         val state = RunTranscriptState(null)
         repeat(5100) { state.feedLive(null, "stderr", "line-$it", it.toLong()) }
         val snapshot = state.snapshot()!!
-        assertEquals(5000, snapshot.first.size)
-        assertEquals(5000, snapshot.second.size)
+        assertEquals(5000, snapshot.entries.size)
+        assertEquals(5000, snapshot.rawLines.size)
         assertTrue(state.trimmed)
-        assertEquals("line-100", snapshot.second.first().text)
+        assertEquals("line-100", snapshot.rawLines.first().text)
+        assertEquals(100L, snapshot.entryStart)
+        assertEquals(100L, snapshot.rawStart)
+        val anchoredEntry = snapshot.entries[200]
+        val anchoredRaw = snapshot.rawLines[200]
+        val entryKey = snapshot.entryStart + 200
+        val rawKey = snapshot.rawStart + 200
+        state.feedLive(null, "stderr", "line-5100", 5100)
+        val updated = state.snapshot()!!
+        // Front trimming keeps a retained row's key attached to the same content.
+        assertEquals(anchoredEntry, updated.entries[(entryKey - updated.entryStart).toInt()])
+        assertEquals(anchoredRaw, updated.rawLines[(rawKey - updated.rawStart).toInt()])
     }
 
     @Test fun liveChunksAndSnapshotsRemainConsistent() = runBlocking {
@@ -30,8 +41,8 @@ class TranscriptConcurrencyTest {
         }
         state.feedLive(null, "stderr", "line-0", 0) // duplicate after reconnect
         val snapshot = state.snapshot()!!
-        assertEquals(200, snapshot.first.size)
-        assertEquals(200, snapshot.second.size)
+        assertEquals(200, snapshot.entries.size)
+        assertEquals(200, snapshot.rawLines.size)
         assertNull(state.snapshot()) // unchanged data does not allocate another snapshot
     }
     @Test fun liveArrivalsWaitUntilSuspendingReplayFinishes() = runTest {

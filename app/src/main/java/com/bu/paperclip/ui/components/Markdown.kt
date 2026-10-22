@@ -153,7 +153,18 @@ private fun MarkdownText(prepared: String, modifier: Modifier, fontSizeSp: Float
                 letterSpacing = -0.004f
             }
         },
+        // Opt in to LazyColumn's AndroidView pool. A row entering view can reuse its TextView.
+        onReset = { tv ->
+            // Markwon clears image subscriptions before replacing text. Never carry selection,
+            // image spans or a previous row's render identity into another comment.
+            mw.setParsedMarkdown(tv, android.text.SpannedString(""))
+            tv.tag = null
+            tv.clearFocus()
+        },
+        onRelease = { tv -> mw.setParsedMarkdown(tv, android.text.SpannedString("")) },
         update = { tv ->
+            tv.setTextIsSelectable(selectable)
+            tv.movementMethod = LinkMovementMethod.getInstance()
             tv.setTextColor(color)
             tv.setLinkTextColor(link)
             tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
